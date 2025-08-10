@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "build": "hardhat compile",
-    "deploy": "hardhat run scripts/deploy.js --network sepolia"
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "export-abis": "node scripts/export-abis.mjs",
+    "test": "hardhat test"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

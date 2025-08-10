@@ -27,9 +27,14 @@ contract Bet is Ownable, ReentrancyGuard {
     address public immutable treasuryVault; // ERC4626 kasası (fee buraya)
     address public dealer;                  // yetkili
 
+    // LP (POL) katkısı
+    address public polCollector;            // LP için USDC toplayan adres/kontrat
+    uint16  public polBps;                  // örn: 1000 = %10
+    uint16  public constant MAX_POL_BPS = 2000; // güvenlik tavanı %20
+
     uint256 public nextGameId;
     uint16 public constant MAX_FEE_BPS = 200;           // %2
-    uint256 public constant INVESTIGATION_PERIOD = 3600; // 1h
+    uint256 public constant INVESTIGATION_PERIOD = 15; // dev: 15s (MVP smoke)
     mapping(uint256 => Game) public games;
     mapping(uint256 => mapping(address => bool)) public hasJoined;
 
@@ -38,19 +43,32 @@ contract Bet is Ownable, ReentrancyGuard {
     event GameStarted(uint256 gid);
     event WinnerProposed(uint256 gid, address winner);
     event WinnerFinalized(uint256 gid, address winner, uint256 pot, uint256 fee, uint256 payout);
+    event LiquidityContribution(uint256 indexed gid, address indexed to, uint256 amount);
 
-    constructor(IERC20 _asset, address _vault, address _initialOwner, address _dealer)
-    Ownable(_initialOwner) {
+    constructor(
+        IERC20 _asset,
+        address _vault,
+        address _initialOwner,
+        address _dealer,
+        address _polCollector,
+        uint16 _polBps
+    ) Ownable(_initialOwner) {
         require(_vault != address(0), "vault=0");
+        require(_polCollector != address(0), "pol=0");
+        require(_polBps <= MAX_POL_BPS, "pol>max");
         asset = _asset;
         treasuryVault = _vault;
         dealer = _dealer;
+        polCollector = _polCollector;
+        polBps = _polBps; // 1000 -> %10
     }
     modifier onlyDealer() {
         require(msg.sender == dealer || msg.sender == owner(), "not dealer");
         _;
     }
     function setDealer(address _dealer) external onlyOwner { require(_dealer!=address(0),"dealer=0"); dealer=_dealer; }
+    function setPolCollector(address a) external onlyOwner { require(a!=address(0),"pol=0"); polCollector=a; }
+    function setPolBps(uint16 b) external onlyOwner { require(b<=MAX_POL_BPS, "pol>max"); polBps=b; }
 
     function createGame(uint8 _limit, uint256 _buyIn, uint16 _feeBps) external onlyOwner returns (uint256 gid) {
         require(_limit==2||_limit==4||_limit==6||_limit==9,"limit");
@@ -85,9 +103,19 @@ contract Bet is Ownable, ReentrancyGuard {
         require(block.timestamp >= uint256(g.investigationStart)+INVESTIGATION_PERIOD,"period");
         require(g.proposedWinner!=address(0),"no winner");
         uint256 pot=g.pot; g.pot=0; g.state=GameState.Ended;
-        uint256 fee = pot * g.feeBps / 10_000; uint256 payout = pot - fee;
-        asset.safeTransfer(g.proposedWinner, payout);          // ödül
-        asset.safeTransfer(treasuryVault, fee);               // fee -> vault (NAV↑)
+        // 1) Rake -> Vault
+        uint256 fee = pot * g.feeBps / 10_000;
+        uint256 gross = pot - fee;
+        // 2) LP payı -> polCollector (örn. %10)
+        uint256 lpCut = gross * polBps / 10_000;
+        uint256 payout = gross - lpCut;
+        // Transferler
+        asset.safeTransfer(g.proposedWinner, payout);
+        asset.safeTransfer(treasuryVault, fee);
+        if (lpCut > 0) {
+            asset.safeTransfer(polCollector, lpCut);
+            emit LiquidityContribution(gid, polCollector, lpCut);
+        }
         emit WinnerFinalized(gid, g.proposedWinner, pot, fee, payout);
     }
 }

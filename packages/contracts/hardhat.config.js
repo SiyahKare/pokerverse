@@ -2,17 +2,25 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
-const PRIVATE_KEY = process.env.PRIVATE_KEY; // sadece varsa kullan
+const PK = process.env.PRIVATE_KEY;
 
-const networks = { hardhat: {} };
-// Geçerli bir PRIVATE_KEY verilmişse sepolia ağı ekle
-if (process.env.RPC_URL && PRIVATE_KEY && /^0x[0-9a-fA-F]{64}$/.test(PRIVATE_KEY)) {
-  networks.sepolia = { url: RPC_URL, accounts: [PRIVATE_KEY] };
-}
+// sadece geçerli 64 haneli hex ise accounts'a ekle
+const accounts = [];
+if (PK && /^0x[0-9a-fA-F]{64}$/.test(PK)) accounts.push(PK);
 
 module.exports = {
-  solidity: "0.8.22",
-  networks
+  solidity: {
+    version: "0.8.22",
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true
+    }
+  },
+  networks: {
+    hardhat: {},
+    localhost: { url: "http://127.0.0.1:8545" },
+    sepolia: { url: RPC_URL, accounts }
+  }
 };
 
 

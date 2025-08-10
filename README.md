@@ -1,189 +1,155 @@
-# Pokerverse — Web3 Texas Hold’em (MVP)
+# Pokerverse — Web3 Texas Hold’em (MVP → V2)
 
-Web’den oynanabilen **Texas Hold’em** poker: **USDC buy-in**, **oyun-bazlı pot**, **rake → ERC-4626 kasası** (sPOKER).  
-Amaç: rug’suz, gerçek gelirle (rake) **tokenize edilmiş kasa** modeli.
+USDC bazlı Texas Hold’em. Oyun sonu rake `TreasuryVault`’a, oturum bakiyesi `ChipBank`’te tutulur; masadan çıkışta (cash‑out) LP kesintisi uygulanır. Showdown/side‑pot motoru ve RainbowKit cüzdan akışıyla uçtan uca lokal demo hazır.
 
-> Stack: **Next.js/React/TS + wagmi/viem**, **Node.js/Socket.IO**, **Hardhat + OpenZeppelin** (ERC-4626).
+- Stack: Next.js/React/TS + wagmi/viem + RainbowKit, Node.js/Express/Socket.IO, Hardhat + OpenZeppelin
+- Monorepo: `contracts` + `backend` + `frontend`
 
 ---
 
 ## ✨ Özellikler
 
-- **Masa tabanlı** (2/4/6/9 oyuncu) No-Limit Texas Hold’em akışı
-- **USDC buy-in** (ERC20 `approve` + `transferFrom`)
-- **Pot izolasyonu** (her oyun kendi pot’unu tutar)
-- **Rake (bps) → TreasuryVault (ERC-4626)**  
-  Pay basmadan kasaya değer eklenir → **sPOKER NAV↑**
-- **Dealer/Oracle finalize** (MVP) — prod’da multisig + imzalı oracle
-- **Monorepo** (contracts + backend + frontend)
+- Socket.IO masa/lobi, 2 koltuk demo; turn timer + aksiyon FSM (check/bet/call/raise/fold)
+- Oyun-bazlı pot, rake(bps) → ERC‑4626 `TreasuryVault` (NAV↑)
+- V2 oturum ekonomisi: `ChipBank` ile oyuncu bakiyesi; cash‑out’ta LP kesintisi (%10 varsayılan)
+- Side‑pot hesaplama + showdown evaluatörü (poker-evaluator) ile çoklu kazanan dağıtımı
+- Dealer (oracle) ile `proposeWinner/finalizeWinner` (MVP); prod’da çok‑imzalı + imzalı mesaj akışı
+- RainbowKit cüzdan modali; ChipBankPanel: Open Session, Winner rozeti, Profit‑Only toggle, Cash‑Out modal (önizlemeli)
 
 ---
 
 ## 📦 Monorepo Yapısı
 
 ```
-
 pokerverse/
-packages/
-contracts/        # Hardhat: Bet.sol, TreasuryVault.sol, MockUSDC.sol
-backend/          # Node TS + Express + Socket.IO + ethers
-frontend/         # Next.js + Tailwind + wagmi + viem
-
-````
-
----
-
-## 🧱 Kontratlar
-
-- **Bet.sol**  
-  - `createGame(limit, buyIn, feeBps)`  
-  - `join(gameId)` → USDC escrow + `pot += buyIn`  
-  - `proposeWinner(gameId, winner)` (dealer/oracle)  
-  - `finalizeWinner(gameId)` → **payout** kazanana, **fee** → `TreasuryVault`
-- **TreasuryVault.sol (ERC-4626 sPOKER)**  
-  - Varlık: USDC (6 decimals)  
-  - `donate(amount)` veya Bet’ten **transfer** ile kasa büyür (pay basılmadan NAV artar)
-- **MockUSDC.sol** (lokal/test)
-
-> **Güvenlik şeritleri:** `MAX_FEE_BPS = %2` (immutable), owner para çekemez (emergency sweep hariç), prod’da **Gnosis Safe + Timelock** önerilir.
-
----
-
-## 🖥️ Backend
-
-- **Node.js + Express + Socket.IO + ethers**
-- Basit uçlar:
-  - `POST /propose { gameId, winner }`
-  - `POST /finalize { gameId }`
-- Oda yayını: `table:{gameId}` → `winnerProposed`, `winnerFinalized`
-
----
-
-## 🎛️ Frontend
-
-- **Next.js + Tailwind + wagmi/viem**
-- Lobby & masa ekranı (MVP)
-- **Approve + Join** akışı (USDC → Bet.join)
-
----
-
-## ⚙️ Kurulum (Hızlı Başlangıç)
-
-1) **Klon + env**
-```bash
-cp .env.example .env
-# RPC_URL, PRIVATE_KEY (deployer), DEALER_PK (backend) doldur
-````
-
-2. **Bağımlılıklar**
-
-```bash
-npm i
+├─ README.md
+├─ CHANGELOG.md
+├─ ROADMAP.md
+├─ TODO.md
+├─ packages/
+│  ├─ contracts/          # Hardhat: Bet.sol, TreasuryVault.sol, ChipBank.sol, LiquidityManager.sol, MockUSDC.sol
+│  ├─ backend/            # Node TS + Express + Socket.IO + ethers + poker-evaluator
+│  └─ frontend/           # Next.js + Tailwind + wagmi + viem + RainbowKit
 ```
 
-3. **Kontratları derle + deploy (Sepolia veya Hardhat)**
+---
 
+## 🧱 Kontratlar (Özet)
+
+- `Bet.sol`: oyun oluşturma/katılım, dealer ile `proposeWinner` → `finalizeWinner`; rake → `TreasuryVault`
+- `TreasuryVault.sol`: ERC‑4626 sPOKER kasası (USDC 6d) — rake ile NAV↑
+- `ChipBank.sol`: oturum bakiyeleri, `openSession`, `settle`/`settleSplit` (dealer), `cashOutFull` (oyuncu)
+  - Parametreler: `polOnHandBps` (genelde 0), `polOnCashoutBps` (örn. 1000 = %10)
+  - Olaylar: `SessionOpened`, `Settled`, `CashOut`, `SessionWinner`
+- `LiquidityManager.sol`: POL toplayıcı (demo)
+- `MockUSDC.sol`: 6 decimals test token
+
+Derleme notu: `ChipBank` için IR optimizasyonu aktiftir (`viaIR: true`).
+
+---
+
+## ⚙️ Komutlar
+
+- Kontratlar
+  - `npm run contracts:build`
+  - `npm -w packages/contracts run deploy:localhost`
+  - `npm -w packages/contracts run export-abis` (Bet/TreasuryVault/ChipBank → backend & frontend)
+  - (ops.) `npm -w packages/contracts run deploy:sepolia`
+- Backend: `npm run backend:dev`
+- Frontend: `npm run frontend:dev`
+- Toplu CI (öneri): `npm -w packages/contracts run build && npm -w packages/contracts run test`
+
+---
+
+## 🚀 Lokal E2E (V2: Side‑Pot + ChipBank + Cash‑Out)
+
+1) Local chain (1. terminal):
 ```bash
-npm run contracts:build
-npm run contracts:deploy
-# çıktılardaki adresleri .env ve frontend env'e yaz
+npm -w packages/contracts exec -- hardhat node
 ```
-
-4. **Backend**
-
+2) Build + Deploy + ABI export (2. terminal):
 ```bash
+npm -w packages/contracts run build
+npm -w packages/contracts run deploy:localhost
+npm -w packages/contracts run export-abis
+# konsoldan USDC / Vault / Bet / ChipBank adreslerini not et
+```
+3) Backend (dealer = Hardhat Account #1) (3. terminal):
+```bash
+PORT=3001 \
+RPC_URL=http://127.0.0.1:8545 \
+DEALER_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
+BET_ADDRESS=0x<BET> \
+CHIPBANK_ADDRESS=0x<ChipBank> \
+RAKE_BPS=100 \
 npm run backend:dev
 ```
-
-5. **Frontend**
-
+4) Frontend (4. terminal):
 ```bash
+export NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
+export NEXT_PUBLIC_USDC=0x<USDC>
+export NEXT_PUBLIC_BET=0x<BET>
+export NEXT_PUBLIC_CHIPBANK=0x<ChipBank>
+export NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+export NEXT_PUBLIC_WC_PROJECT_ID=<WalletConnect_Project_ID>
 npm run frontend:dev
+# http://localhost:3000
 ```
+5) UI akışı:
+- Sağ üstten Connect → Lobby’den 2 koltuklu masa oluştur → iki cüzdanla Join
+- ChipBankPanel → Open Session (10 USDC) (approve + openSession)
+- Aksiyonlarla river’a gel → showdown; backend log’unda `onchain:settled` ve tx hash çıkar
+- Winner için Cash Out → modalda LP kesinti (varsayılan %10) ve net önizleme → onayla
+
+Notlar:
+- SCALE = 1_000_000 (1 chip = 1 USDC, 6 decimals)
+- Kart formatı: `As`, `Kd`, `Qc`, `Th` (rank uppercase + suit)
 
 ---
 
-## 🔑 Ortam Değişkenleri
+## 🔑 Ortam Değişkenleri (Özet)
 
-`.env` (örnek):
-
+Backend `.env`:
 ```
-# Ortak
-RPC_URL=https://sepolia.infura.io/v3/XXXX
-PRIVATE_KEY=0xabc...        # deployer
-DEALER_PK=0xabc...          # backend dealer/oracle
-
-# Deploy sonrası
+RPC_URL=...
+PRIVATE_KEY=0x...
+DEALER_PK=0x...
 USDC_ADDRESS=0x...
 VAULT_ADDRESS=0x...
 BET_ADDRESS=0x...
-
-# Backend
+CHIPBANK_ADDRESS=0x...
+RAKE_BPS=100
 PORT=3001
+```
 
-# Frontend
-NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/XXXX
+Frontend `.env.local`:
+```
+NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
 NEXT_PUBLIC_USDC=0x...
 NEXT_PUBLIC_BET=0x...
+NEXT_PUBLIC_CHIPBANK=0x...
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
+NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect_project_id>
 ```
 
 ---
 
-## 🧪 Test & Lokal Zincir
-
-* Hardhat local node:
-
-```bash
-npx hardhat node
-# yeni terminal
-npx hardhat run packages/contracts/scripts/deploy.js --network localhost
-```
-
-* Unit testler `packages/contracts/test/` altında (eklenecek).
-
----
-
-## 🧭 Mimarî (Özet Akış)
+## 🧭 Akış (Kısa)
 
 ```
-Oyuncu ──(approve+join)──> Bet (pot↑) ──(finalize)──> payout→Winner
-                                   └── fee(bps) ───> TreasuryVault (NAV↑)
+Oyun (pot, rake) → Vault (NAV↑)
+Oturum bakiyesi (ChipBank) → Cash‑Out (%LP kesinti) → Oyuncu & POL
 ```
 
-* **Swap/MEV yok** (buy-in USDC) ⇒ sadelik ve güvenlik
-* **Gerçek gelir** (rake) kasaya akar ⇒ **sPOKER sahipleri** değer kazanır
+## 🩺 Troubleshooting
 
----
-
-## 🛡️ Prod Notları
-
-* Dealer/oracle → imzalı mesaj veya multisig’e taşı
-* Parametre değişiklikleri → **Timelock + Gnosis Safe**
-* RPC ve keeper (varsa) için rate-limit/gas izleme
-* Log/monitoring: Sentry + Tenderly/Blockscout uyarıları
-
----
-
-## 🗺️ Yol Haritası
-
-* [ ] Socket.IO tur/side-pot motoru
-* [ ] Split pot/showdown evaluatörü
-* [ ] RainbowKit + tam cüzdan akışı
-* [ ] Fuzz & invariants (Foundry) + kapsamlı testler
-* [ ] DAO parametreleri + sPOKER görüntüleme UI
-
----
-
-## ⚠️ Uyum
-
-Bu repo **teknik MVP** içindir. Kumar & oyun mevzuatı her ülkeye göre farklıdır.
-Dağıtım/işletim öncesi **yerel regülasyonlar** için hukuk kontrolü yapınız.
-
----
+- Port çakışması (EADDRINUSE): eski süreçleri kapatın
+  - `pkill -f "hardhat node"; pkill -f "tsx watch packages/backend/src/server.ts"; pkill -f "next dev"`
+- ABI senkronizasyonu: deploy’dan sonra mutlaka `export-abis` ve backend restart
+- `unknown fragment / event` hataları: eski ABI kullanımı → export + restart
+- `ERR_MODULE_NOT_FOUND: .../ChipBank.json`: export-abis çalıştırılmamış ya da yanlış yol; script düzeltilmiştir
+- `Stack too deep`: `viaIR: true` derleyici ayarı aktif
 
 ## 📄 Lisans
 
 MIT
-
-```
-```

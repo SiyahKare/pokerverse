@@ -2,8 +2,8 @@
   {
     "inputs": [
       {
-        "internalType": "contract IERC20",
-        "name": "_asset",
+        "internalType": "address",
+        "name": "_usdc",
         "type": "address"
       },
       {
@@ -13,23 +13,23 @@
       },
       {
         "internalType": "address",
-        "name": "_initialOwner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_dealer",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "_polCollector",
         "type": "address"
       },
       {
         "internalType": "uint16",
-        "name": "_polBps",
+        "name": "_polOnHandBps",
         "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "_polOnCashoutBps",
+        "type": "uint16"
+      },
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -58,11 +58,6 @@
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -77,69 +72,37 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "gid",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "limit",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "buyIn",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "feeBps",
-        "type": "uint16"
-      }
-    ],
-    "name": "GameCreated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "gid",
-        "type": "uint256"
-      }
-    ],
-    "name": "GameStarted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "uint256",
-        "name": "gid",
+        "name": "tid",
         "type": "uint256"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "to",
+        "name": "player",
         "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amount",
+        "name": "gross",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lpCutCashout",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "netPaid",
         "type": "uint256"
       }
     ],
-    "name": "LiquidityContribution",
+    "name": "CashOut",
     "type": "event"
   },
   {
@@ -165,32 +128,57 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
-        "name": "gid",
+        "name": "tid",
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "player",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "buyIn",
+        "type": "uint256"
       }
     ],
-    "name": "PlayerJoined",
+    "name": "SessionOpened",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
-        "name": "gid",
+        "name": "tid",
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      }
+    ],
+    "name": "SessionWinner",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "winner",
         "type": "address"
@@ -210,57 +198,18 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "payout",
-        "type": "uint256"
-      }
-    ],
-    "name": "WinnerFinalized",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "gid",
+        "name": "lpCutHand",
         "type": "uint256"
       },
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "winner",
-        "type": "address"
-      }
-    ],
-    "name": "WinnerProposed",
-    "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "INVESTIGATION_PERIOD",
-    "outputs": [
-      {
         "internalType": "uint256",
-        "name": "",
+        "name": "netCredited",
         "type": "uint256"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "MAX_FEE_BPS",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "Settled",
+    "type": "event"
   },
   {
     "inputs": [],
@@ -276,123 +225,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "asset",
-    "outputs": [
-      {
-        "internalType": "contract IERC20",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "_limit",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_buyIn",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint16",
-        "name": "_feeBps",
-        "type": "uint16"
-      }
-    ],
-    "name": "createGame",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "gid",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "dealer",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "gid",
-        "type": "uint256"
-      }
-    ],
-    "name": "finalizeWinner",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "games",
-    "outputs": [
-      {
-        "internalType": "enum Bet.GameState",
-        "name": "state",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "playerLimit",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint256",
-        "name": "buyIn",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint16",
-        "name": "feeBps",
-        "type": "uint16"
-      },
-      {
-        "internalType": "uint256",
-        "name": "pot",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "proposedWinner",
-        "type": "address"
-      },
-      {
-        "internalType": "uint64",
-        "name": "investigationStart",
-        "type": "uint64"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -405,7 +237,7 @@
         "type": "address"
       }
     ],
-    "name": "hasJoined",
+    "name": "active",
     "outputs": [
       {
         "internalType": "bool",
@@ -420,18 +252,16 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "gid",
+        "name": "",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
-    "name": "join",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "nextGameId",
+    "name": "balances",
     "outputs": [
       {
         "internalType": "uint256",
@@ -443,6 +273,89 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "onlyWinnerMode",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "profitOnly",
+        "type": "bool"
+      }
+    ],
+    "name": "cashOutFull",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "deposits",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "w",
+        "type": "address"
+      }
+    ],
+    "name": "markSessionWinner",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "buyIn",
+        "type": "uint256"
+      }
+    ],
+    "name": "openSession",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "owner",
     "outputs": [
@@ -450,19 +363,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "polBps",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
       }
     ],
     "stateMutability": "view",
@@ -482,21 +382,29 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "polOnCashoutBps",
+    "outputs": [
       {
-        "internalType": "uint256",
-        "name": "gid",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "winner",
-        "type": "address"
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
       }
     ],
-    "name": "proposeWinner",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "polOnHandBps",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -509,12 +417,31 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "sessionWinner",
+    "outputs": [
+      {
         "internalType": "address",
-        "name": "_dealer",
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "setDealer",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "a",
+        "type": "address"
+      }
+    ],
+    "name": "setPolCollector",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -527,7 +454,7 @@
         "type": "uint16"
       }
     ],
-    "name": "setPolBps",
+    "name": "setPolOnCashoutBps",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -535,12 +462,83 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "a",
-        "type": "address"
+        "internalType": "uint16",
+        "name": "b",
+        "type": "uint16"
       }
     ],
-    "name": "setPolCollector",
+    "name": "setPolOnHandBps",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "losers",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint16",
+        "name": "rakeBps",
+        "type": "uint16"
+      }
+    ],
+    "name": "settle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "losers",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address[]",
+        "name": "winners",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "winnerCredits",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint16",
+        "name": "rakeBps",
+        "type": "uint16"
+      }
+    ],
+    "name": "settleSplit",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -560,7 +558,20 @@
   },
   {
     "inputs": [],
-    "name": "treasuryVault",
+    "name": "usdc",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vault",
     "outputs": [
       {
         "internalType": "address",
