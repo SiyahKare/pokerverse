@@ -2,6 +2,7 @@ import { Container, Sprite } from '@pixi/react'
 import { useMemo } from 'react'
 import { useTextures } from '../../assets/TextureStore'
 import { getBoardSlots } from '../layout/layout'
+import type { CardId } from '../../assets/atlas-loader'
 
 export default function CommunityBoard({ cards }: { cards: string[] }) {
   const { cardTexture } = useTextures()
@@ -10,7 +11,7 @@ export default function CommunityBoard({ cards }: { cards: string[] }) {
   return (
     <Container>
       {cards.map((c, i) => (
-        <Sprite key={i} texture={cardTexture(c as any)} x={slots[i].x} y={slots[i].y} anchor={0.5} />
+        <Sprite key={i} texture={cardTexture(c as CardId)} x={slots[i].x} y={slots[i].y} anchor={0.5} />
       ))}
     </Container>
   )
