@@ -4,6 +4,16 @@
 html, body, #root { height: 100%; }
 
 :root {
+  --tg-bg: #0b0b0b;
+  --tg-sec-bg: #111418;
+  --tg-text: #ffffff;
+  --tg-hint: #9aa4b2;
+  --tg-link: #2ea6ff;
+  --tg-btn: #2ea6ff;
+  --tg-btn-text: #ffffff;
+}
+
+:root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
