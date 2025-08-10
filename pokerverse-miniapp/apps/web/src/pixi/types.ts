@@ -15,4 +15,14 @@ export type TableState = {
   lastAction?: { seat: SeatIndex; kind: ActionType; amount?: number } | null
 }
 
+export type ClientAction =
+  | { type:'ACTION'; payload:{ seat:number; kind:'fold'|'check'|'call'|'bet'|'raise'|'allin'; amount?:number } }
+  | { type:'PING' }
+
+export type ServerMsg =
+  | { type:'TABLE_STATE'; payload: TableState }
+  | { type:'ACTION_ACK';  payload:{ ok:true } }
+  | { type:'ACTION_REJECTED'; payload:{ reason:string; min?:number; max?:number } }
+  | { type:'PONG' }
+
 

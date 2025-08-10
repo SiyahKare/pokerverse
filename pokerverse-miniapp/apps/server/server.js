@@ -29,7 +29,12 @@ wss.on('connection', (ws) => {
     try {
       const msg = JSON.parse(buf.toString());
       if (msg.type === 'ACTION') {
-        const { seat = 0, kind = 'bet', amount = 50 } = msg.payload || {};
+        const { seat = 0, kind = 'bet', amount = 0 } = msg.payload || {};
+        // basit min bet/raise doğrulaması
+        if ((kind === 'bet' || kind === 'raise') && amount < 50) {
+          ws.send(JSON.stringify({ type: 'ACTION_REJECTED', payload: { reason: 'Min bet 50', min: 50 } }));
+          return;
+        }
         table = {
           ...table,
           potAmount: (table.potAmount || 0) + (amount || 0),
@@ -37,6 +42,8 @@ wss.on('connection', (ws) => {
         };
         ws.send(JSON.stringify({ type: 'ACTION_ACK', payload: { ok: true } }));
         broadcast({ type: 'TABLE_STATE', payload: table });
+      } else if (msg.type === 'PING') {
+        ws.send(JSON.stringify({ type: 'PONG' }));
       } else if (msg.type === 'JOIN') {
         const { seat, addr = 'player', buyIn = 10 } = msg.payload || {};
         if (seat == null || seat < 0 || seat >= table.maxSeats) {

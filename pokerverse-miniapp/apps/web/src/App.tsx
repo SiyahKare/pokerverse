@@ -35,16 +35,34 @@ export default function App() {
   const haptic = (k:'light'|'medium'|'rigid'|'success'|'warning')=>{ if(!tg) return; if(k==='success'||k==='warning') return tg.haptics.notificationOccurred(k); tg.haptics.impactOccurred(k) }
 
   useEffect(()=>{
+    let alive = true as boolean
+    let t: any, hb: any
     const url = (import.meta as any).env.VITE_WS_URL as string | undefined
     if(!url) return
-    const ws = new WebSocket(url)
-    ws.onmessage = ev => { try { const msg = JSON.parse(ev.data as string); if(msg.type==='TABLE_STATE') setState(msg.payload) } catch{} }
-    ;(window as any).pvSend = (payload:any)=>ws.send(JSON.stringify({type:'ACTION', payload}))
-    return ()=> ws.close()
+    function connect(){
+      const ws = new WebSocket(url)
+      ;(window as any).pvSend = (payload:any)=> ws.readyState===1 && ws.send(JSON.stringify({type:'ACTION', payload}))
+      ws.onopen = () => { hb = setInterval(()=> ws.readyState===1 && ws.send(JSON.stringify({ type:'PING' })), 15000) }
+      ws.onmessage = (ev: MessageEvent) => {
+        try {
+          const msg = JSON.parse(ev.data as string)
+          if (msg.type === 'TABLE_STATE') setState(msg.payload)
+          if (msg.type === 'ACTION_REJECTED') console.warn('Rejected:', msg.payload?.reason)
+        } catch {}
+      }
+      ws.onclose = () => { clearInterval(hb); if(!alive) return; t = setTimeout(connect, 1500) }
+    }
+    connect()
+    return ()=> { alive=false; clearTimeout(t); clearInterval(hb) }
   },[])
 
   const [betOpen,setBetOpen]=useState(false)
-  const callAmount=120, minBet=200, maxBet=5000, step=20
+  const bb=100, toCall=120, lastAgg=200, stack=5000
+  const pot=state.potAmount
+  // basit sınırlar (server nihai hakem):
+  const minBet=Math.max(bb, toCall+Math.max(lastAgg, bb))
+  const maxBet=stack
+  const step=Math.max(1, Math.round(bb/4))
 
   return (
     <TextureProvider>
@@ -55,18 +73,18 @@ export default function App() {
 
         <ActionBar
           canCheck={false}
-          callAmount={callAmount}
+          callAmount={toCall}
           canBetOrRaise={true}
           onFold={()=> haptic('light')}
-          onCheckOrCall={()=> { haptic('medium'); (window as any).pvSend?.({ seat:2, kind:'call', amount:callAmount }) }}
+          onCheckOrCall={()=> { haptic('medium'); (window as any).pvSend?.({ seat:2, kind:'call', amount:toCall }) }}
           onBetOrRaise={()=> setBetOpen(true)}
         />
 
         <BetPanel
           open={betOpen}
           min={minBet} max={maxBet} step={step}
-          pot={state.potAmount} call={callAmount}
-          initial={Math.max(minBet, callAmount)}
+          pot={pot} call={toCall}
+          initial={Math.max(minBet, toCall)}
           onConfirm={(v)=> { haptic('success'); setBetOpen(false); (window as any).pvSend?.({ seat:2, kind:'raise', amount:v }) }}
           onClose={()=> setBetOpen(false)}
           haptic={haptic}
