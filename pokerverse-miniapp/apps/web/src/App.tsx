@@ -8,6 +8,7 @@ import { useTelegramTheme } from './hooks/useTelegramTheme'
 import { useTelegramUI } from './hooks/useTelegramUI'
 import ActionBar from './ui/ActionBar'
 import BetPanel from './ui/BetPanel'
+import Toast from './ui/Toast'
 
 function useWindowSize() {
   const [s, set] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -47,7 +48,7 @@ export default function App() {
         try {
           const msg = JSON.parse(ev.data as string)
           if (msg.type === 'TABLE_STATE') setState(msg.payload)
-          if (msg.type === 'ACTION_REJECTED') console.warn('Rejected:', msg.payload?.reason)
+          if (msg.type === 'ACTION_REJECTED') setToast(msg.payload?.reason || 'Action rejected')
         } catch {}
       }
       ws.onclose = () => { clearInterval(hb); if(!alive) return; t = setTimeout(connect, 1500) }
@@ -57,6 +58,7 @@ export default function App() {
   },[])
 
   const [betOpen,setBetOpen]=useState(false)
+  const [toast, setToast] = useState('')
   const bb=100, toCall=120, lastAgg=200, stack=5000
   const pot=state.potAmount
   // basit sınırlar (server nihai hakem):
@@ -91,6 +93,7 @@ export default function App() {
         />
       </div>
     </TextureProvider>
+      <Toast text={toast} onClose={()=> setToast('')} />
   )
 }
 
