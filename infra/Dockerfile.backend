@@ -1,0 +1,22 @@
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Backend build vars (if any) should be set via env; here we only build
+RUN npm -w packages/backend run build || true
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/backend/dist ./packages/backend/dist
+COPY --from=build /app/packages/backend/package*.json ./packages/backend/
+EXPOSE 3001
+CMD ["node", "packages/backend/dist/server.js"]
+
+

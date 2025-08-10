@@ -1,0 +1,31 @@
+FROM node:20-alpine AS deps
+WORKDIR /web
+COPY pokerverse-miniapp/apps/web/package*.json ./
+RUN npm ci
+
+FROM node:20-alpine AS build
+WORKDIR /web
+ARG VITE_WC_PROJECT_ID
+ARG VITE_CHAIN_ID
+ARG VITE_RPC_URL
+ARG VITE_USDC
+ARG VITE_CHIPBANK
+ARG VITE_BET
+ENV VITE_WC_PROJECT_ID=${VITE_WC_PROJECT_ID}
+ENV VITE_CHAIN_ID=${VITE_CHAIN_ID}
+ENV VITE_RPC_URL=${VITE_RPC_URL}
+ENV VITE_USDC=${VITE_USDC}
+ENV VITE_CHIPBANK=${VITE_CHIPBANK}
+ENV VITE_BET=${VITE_BET}
+COPY --from=deps /web/node_modules ./node_modules
+# Copy Vite app and shared miniapp sources (web imports ../../src/...)
+COPY pokerverse-miniapp/apps/web ./
+COPY pokerverse-miniapp/src /src
+RUN npm run build
+
+FROM nginx:alpine AS runtime
+COPY --from=build /web/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+

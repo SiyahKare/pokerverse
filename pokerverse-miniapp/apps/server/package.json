@@ -1,0 +1,14 @@
+{
+  "name": "pokerverse-miniapp-server",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "nanoid": "^5.0.7",
+    "ws": "^8.18.0"
+  }
+}
+
+

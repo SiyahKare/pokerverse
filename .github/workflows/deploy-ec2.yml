@@ -1,0 +1,141 @@
+name: Deploy Pokerverse to EC2
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/**'
+      - 'pokerverse-miniapp/**'
+      - 'infra/**'
+      - '.github/workflows/deploy-ec2.yml'
+
+env:
+  IMAGE_OWNER: ${{ vars.IMAGE_OWNER || github.repository_owner }}
+  TAG: ${{ github.sha }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build WS image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.ws
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-ws:${{ env.TAG }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-ws:latest
+
+      - name: Build Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: packages/frontend
+          file: packages/frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-frontend:${{ env.TAG }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-frontend:latest
+
+      - name: Build Miniapp Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.web
+          push: true
+          build-args: |
+            VITE_WC_PROJECT_ID=${{ secrets.VITE_WC_PROJECT_ID }}
+            VITE_CHAIN_ID=${{ vars.CHAIN_ID }}
+            VITE_RPC_URL=${{ secrets.RPC_URL }}
+            VITE_USDC=${{ vars.USDC_ADDRESS }}
+            VITE_CHIPBANK=${{ vars.CHIPBANK_ADDRESS }}
+            VITE_BET=${{ vars.BET_ADDRESS }}
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-web:${{ env.TAG }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-web:latest
+
+      - name: Build Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile.backend
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-backend:${{ env.TAG }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-backend:latest
+
+  deploy-ec2:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Copy compose to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          source: infra/docker-compose.prod.yml
+          target: /opt/pokerverse
+
+      - name: Render .env on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          script: |
+            sudo mkdir -p /opt/pokerverse && sudo chown -R $USER:$USER /opt/pokerverse
+            cat > /opt/pokerverse/.env << 'EOF'
+            IMAGE_OWNER=${{ env.IMAGE_OWNER }}
+            TAG=${{ env.TAG }}
+            WEB_HOST=${{ vars.WEB_HOST }}
+            API_HOST=${{ vars.API_HOST }}
+            WS_HOST=${{ vars.WS_HOST }}
+            MINI_HOST=${{ vars.MINI_HOST }}
+            RPC_URL=${{ secrets.RPC_URL }}
+            WC_PROJECT_ID=${{ secrets.VITE_WC_PROJECT_ID }}
+            USDC_ADDRESS=${{ vars.USDC_ADDRESS }}
+            BET_ADDRESS=${{ vars.BET_ADDRESS }}
+            CHIPBANK_ADDRESS=${{ vars.CHIPBANK_ADDRESS }}
+            RAKE_BPS=${{ vars.RAKE_BPS }}
+            DEALER_PK=${{ secrets.DEALER_PK }}
+            EOF
+
+      - name: Docker compose up (Traefik ağı hazır varsayımıyla)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          script: |
+            cd /opt/pokerverse
+            docker network ls | grep traefik_proxy || docker network create traefik_proxy
+            docker compose --env-file .env -f docker-compose.prod.yml pull
+            docker compose --env-file .env -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml ps
+
+

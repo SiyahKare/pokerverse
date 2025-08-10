@@ -1,0 +1,125 @@
+version: "3.9"
+
+networks:
+  proxy:
+    external: true
+    name: traefik_proxy
+  appnet:
+    name: pokerverse_appnet
+
+x-env: &common_env
+  NODE_ENV: production
+  RPC_URL: ${RPC_URL}
+  WC_PROJECT_ID: ${WC_PROJECT_ID}
+  USDC_ADDRESS: ${USDC_ADDRESS}
+  BET_ADDRESS: ${BET_ADDRESS}
+  CHIPBANK_ADDRESS: ${CHIPBANK_ADDRESS}
+  RAKE_BPS: ${RAKE_BPS:-100}
+
+services:
+  backend:
+    build:
+      context: ../packages/backend
+      dockerfile: Dockerfile
+    # image: ghcr.io/ORG/pokerverse-backend:latest
+    environment:
+      <<: *common_env
+      PORT: 3001
+      DEALER_PK: ${DEALER_PK}
+    depends_on:
+      - anvil
+    expose:
+      - "3001"
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-api.rule=Host(`${API_HOST}`)
+      - traefik.http.routers.pokerverse-api.entrypoints=websecure
+      - traefik.http.routers.pokerverse-api.tls.certresolver=le
+      - traefik.http.services.pokerverse-api.loadbalancer.server.port=3001
+    restart: always
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:3001/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 8
+
+  frontend:
+    build:
+      context: ../packages/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WC_PROJECT_ID: ${WC_PROJECT_ID}
+        NEXT_PUBLIC_RPC_URL: ${RPC_URL}
+        NEXT_PUBLIC_USDC: ${USDC_ADDRESS}
+        NEXT_PUBLIC_BET: ${BET_ADDRESS}
+        NEXT_PUBLIC_CHIPBANK: ${CHIPBANK_ADDRESS}
+        NEXT_PUBLIC_BACKEND_URL: https://${API_HOST}
+    # image: ghcr.io/ORG/pokerverse-frontend:latest
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-web.rule=Host(`${WEB_HOST}`)
+      - traefik.http.routers.pokerverse-web.entrypoints=websecure
+      - traefik.http.routers.pokerverse-web.tls.certresolver=le
+      - traefik.http.services.pokerverse-web.loadbalancer.server.port=3000
+    restart: always
+
+  miniapp:
+    build:
+      context: ../pokerverse-miniapp
+      dockerfile: Dockerfile
+      args:
+        VITE_WC_PROJECT_ID: ${WC_PROJECT_ID}
+        VITE_CHAIN_ID: ${CHAIN_ID}
+        VITE_RPC_URL: ${RPC_URL}
+        VITE_USDC: ${USDC_ADDRESS}
+        VITE_CHIPBANK: ${CHIPBANK_ADDRESS}
+        VITE_BET: ${BET_ADDRESS}
+    # image: ghcr.io/ORG/pokerverse-miniapp:latest
+    expose:
+      - "8080"
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-mini.rule=Host(`${MINI_HOST}`)
+      - traefik.http.routers.pokerverse-mini.entrypoints=websecure
+      - traefik.http.routers.pokerverse-mini.tls.certresolver=le
+      - traefik.http.services.pokerverse-mini.loadbalancer.server.port=8080
+    restart: always
+
+  telegram-bot:
+    build:
+      context: ../packages/telegram-bot
+      dockerfile: Dockerfile
+    # image: ghcr.io/ORG/pokerverse-bot:latest
+    environment:
+      <<: *common_env
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      WEBAPP_URL: https://${MINI_HOST}
+      API_URL: https://${API_HOST}
+    expose:
+      - "3000"
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-bot.rule=Host(`${BOT_HOST}`)
+      - traefik.http.routers.pokerverse-bot.entrypoints=websecure
+      - traefik.http.routers.pokerverse-bot.tls.certresolver=le
+      - traefik.http.services.pokerverse-bot.loadbalancer.server.port=3000
+    restart: always
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    command: anvil --host 0.0.0.0 --chain-id ${CHAIN_ID:-31337}
+    ports:
+      - "8545:8545"
+    networks: [appnet]
+    restart: unless-stopped
+    profiles: ["localchain"]
+
+

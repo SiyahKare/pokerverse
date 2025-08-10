@@ -1,0 +1,96 @@
+version: "3.9"
+
+networks:
+  proxy:
+    external: true
+    name: traefik_proxy
+  appnet:
+    name: pokerverse_appnet
+
+x-env: &common_env
+  NODE_ENV: production
+  RPC_URL: ${RPC_URL}
+  WC_PROJECT_ID: ${WC_PROJECT_ID}
+  USDC_ADDRESS: ${USDC_ADDRESS}
+  BET_ADDRESS: ${BET_ADDRESS}
+  CHIPBANK_ADDRESS: ${CHIPBANK_ADDRESS}
+  RAKE_BPS: ${RAKE_BPS:-100}
+
+services:
+  backend:
+    image: ghcr.io/${IMAGE_OWNER}/pokerverse-backend:${TAG:-latest}
+    environment:
+      <<: *common_env
+      PORT: 3001
+      DEALER_PK: ${DEALER_PK}
+    depends_on: []
+    expose: ["3001"]
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-api.rule=Host(`${API_HOST}`)
+      - traefik.http.routers.pokerverse-api.entrypoints=websecure
+      - traefik.http.routers.pokerverse-api.tls.certresolver=le
+      - traefik.http.services.pokerverse-api.loadbalancer.server.port=3001
+    restart: always
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:3001/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 8
+
+  frontend:
+    image: ghcr.io/${IMAGE_OWNER}/pokerverse-frontend:${TAG:-latest}
+    environment:
+      NODE_ENV: production
+    expose: ["3000"]
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-web.rule=Host(`${WEB_HOST}`)
+      - traefik.http.routers.pokerverse-web.entrypoints=websecure
+      - traefik.http.routers.pokerverse-web.tls.certresolver=le
+      - traefik.http.services.pokerverse-web.loadbalancer.server.port=3000
+    restart: always
+
+  ws:
+    image: ghcr.io/${IMAGE_OWNER}/pokerverse-ws:${TAG:-latest}
+    expose: ["3011"]
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-ws.rule=Host(`${WS_HOST}`)
+      - traefik.http.routers.pokerverse-ws.entrypoints=websecure
+      - traefik.http.routers.pokerverse-ws.tls.certresolver=le
+      - traefik.http.services.pokerverse-ws.loadbalancer.server.port=3011
+    restart: always
+
+  miniapp:
+    image: ghcr.io/${IMAGE_OWNER}/pokerverse-web:${TAG:-latest}
+    expose: ["80"]
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-mini.rule=Host(`${MINI_HOST}`)
+      - traefik.http.routers.pokerverse-mini.entrypoints=websecure
+      - traefik.http.routers.pokerverse-mini.tls.certresolver=le
+      - traefik.http.services.pokerverse-mini.loadbalancer.server.port=80
+    restart: always
+
+  telegram-bot:
+    image: ghcr.io/${IMAGE_OWNER}/pokerverse-bot:${TAG:-latest}
+    environment:
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      WEBAPP_URL: https://${MINI_HOST}
+      API_URL: https://${API_HOST}
+    expose: ["3000"]
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-bot.rule=Host(`${BOT_HOST}`)
+      - traefik.http.routers.pokerverse-bot.entrypoints=websecure
+      - traefik.http.routers.pokerverse-bot.tls.certresolver=le
+      - traefik.http.services.pokerverse-bot.loadbalancer.server.port=3000
+    restart: always
+
+

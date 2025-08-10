@@ -8,6 +8,7 @@ import io from 'socket.io-client'
 import BetABI from "../abis/Bet.json";
 import ERC20 from "../abis/ERC20.json"; // indir: OZ ERC20 ABI (minimal approve)
 import ChipBankABI from "../abis/ChipBank.json";
+import TableCanvas from "./components/TableCanvas";
 
 const BET = process.env.NEXT_PUBLIC_BET as `0x${string}`;
 const USDC = process.env.NEXT_PUBLIC_USDC as `0x${string}`;
@@ -183,8 +184,20 @@ export default function Home() {
   const send = (kind: "check"|"bet"|"call"|"raise"|"fold", amount?: number) =>
     socket.emit('action', table.id, seat, { kind, amount }, (res:any)=> console.log(res))
 
+  // Canvas props
+  const seatsProp = [...Array(9)].map((_,i)=>({
+    seat: i,
+    name: table?.players?.[i]?.addr ? `P${i+1}` : `Seat ${i+1}`,
+    stack: table?.players?.[i]?.stack ?? 0,
+    isTurn: table?.turnSeat === i,
+    isSitting: !!table?.players?.[i],
+  }))
+  const myCards: Record<number, string[]> = (seat !== null)
+    ? { [seat]: table?.holes?.[seat] ?? [] }
+    : {}
+
   return (
-    <main className="p-6 max-w-xl mx-auto space-y-4">
+    <main className="p-6 max-w-6xl mx-auto space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Pokerverse MVP</h1>
         <ConnectButton />
@@ -217,6 +230,20 @@ export default function Home() {
               <button onClick={()=>send("fold")} className="px-3 py-1 bg-red-600 text-white rounded">Fold</button>
             </div>
           )}
+
+          {/* Canvas container center */}
+          <div className="w-full flex items-center justify-center">
+            <div className="w-full max-w-[1280px]">
+              <TableCanvas
+                className="mx-auto"
+                seats={seatsProp}
+                potAmount={Number(table?.pot ?? 0)}
+                communityCards={(table?.board ?? []).map((c:string)=>c)}
+                playerCards={myCards}
+                lastAction={table?.lastAction ?? null}
+              />
+            </div>
+          </div>
           <ChipBankPanel />
           <div className="flex gap-3">
             <button className="px-4 py-2 rounded bg-gray-200" onClick={approve} disabled={isLoading}>

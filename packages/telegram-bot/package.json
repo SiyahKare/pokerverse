@@ -1,0 +1,19 @@
+{
+  "name": "pokerverse-telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pino": "^9.2.0",
+    "telegraf": "^4.16.3",
+    "dotenv": "^16.4.5"
+  }
+}
+
+
