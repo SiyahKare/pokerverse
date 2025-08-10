@@ -1,7 +1,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY pokerverse-miniapp/apps/server/package*.json ./
-RUN npm ci
+# Subpakette lock bulunmadığı için ci yerine install kullan
+RUN npm install --omit=dev
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
