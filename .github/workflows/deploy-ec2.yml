@@ -27,10 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-
-      - name: Install deps
-        run: npm ci
+          cache: 'npm'
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -85,6 +82,16 @@ jobs:
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-backend:${{ env.TAG }}
             ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-backend:latest
+
+      - name: Build Telegram Bot image
+        uses: docker/build-push-action@v6
+        with:
+          context: packages/telegram-bot
+          file: packages/telegram-bot/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-bot:${{ env.TAG }}
+            ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-bot:latest
 
   deploy-ec2:
     needs: build-and-push
