@@ -1,0 +1,18 @@
+# root
+node_modules
+.env
+.DS_Store
+
+# contracts
+packages/contracts/cache
+packages/contracts/artifacts
+packages/contracts/typechain-types
+
+# backend
+packages/backend/dist
+
+# frontend
+packages/frontend/.next
+packages/frontend/out
+
+
