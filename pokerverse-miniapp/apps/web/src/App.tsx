@@ -5,6 +5,7 @@ import './index.css'
 import { connectWC, approveUSDC, openSession } from '../../../src/web3'
 import Hud from '../../../src/Hud'
 import CashOutModal from '../../../src/CashOutModal'
+import { HelpOverlay } from '../../../src/HelpOverlay'
 
 function useWindowSize() {
   const [s, set] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -18,6 +19,7 @@ function useWindowSize() {
 export default function App() {
   const { w, h } = useWindowSize()
   const [open, setOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const [state, setState] = useState<TableState>({
     maxSeats: 9,
@@ -71,6 +73,13 @@ export default function App() {
       <Hud />
       <button style={{position:'absolute', top:12, right:12}} onClick={()=>setOpen(true)}>Cash Out</button>
       <CashOutModal open={open} onClose={()=>setOpen(false)} />
+      <button
+        onClick={() => setHelpOpen(true)}
+        style={{position:'absolute', bottom:16, right:16, padding:'8px 12px', borderRadius:16, background:'#000', color:'#fff', zIndex:998}}
+      >
+        ?
+      </button>
+      <HelpOverlay open={helpOpen} onClose={()=>setHelpOpen(false)} />
     </div>
   )
 }

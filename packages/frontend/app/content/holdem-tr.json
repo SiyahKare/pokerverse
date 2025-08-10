@@ -1,0 +1,23 @@
+{
+  "title": "Texas Hold’em – Hızlı Kılavuz",
+  "flow": ["Pre-flop", "Flop (3)", "Turn (1)", "River (1)", "Showdown"],
+  "actions": ["Check", "Bet", "Call", "Raise", "Fold", "All-in"],
+  "blinds": "SB ve BB zorunlu kör bahislerdir; dealer düğmesi saat yönünde gezer.",
+  "minRaiseRule": "No-Limit: minimum raise, son artırımla aynı fark kadar olmalıdır.",
+  "burn": "Flop/Turn/River’dan önce bir kart yakılır.",
+  "sidePots": "All-in olduğunda, ana pot ve gerekirse yan potlar oluşur.",
+  "handRanks": [
+    "Royal Flush",
+    "Straight Flush",
+    "Four of a Kind",
+    "Full House",
+    "Flush",
+    "Straight",
+    "Three of a Kind",
+    "Two Pair",
+    "One Pair",
+    "High Card"
+  ]
+}
+
+

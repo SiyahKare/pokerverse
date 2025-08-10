@@ -9,6 +9,7 @@ import BetABI from "../abis/Bet.json";
 import ERC20 from "../abis/ERC20.json"; // indir: OZ ERC20 ABI (minimal approve)
 import ChipBankABI from "../abis/ChipBank.json";
 import TableCanvas from "./components/TableCanvas";
+import HelpModal from "./components/HelpModal";
 
 const BET = process.env.NEXT_PUBLIC_BET as `0x${string}`;
 const USDC = process.env.NEXT_PUBLIC_USDC as `0x${string}`;
@@ -258,6 +259,7 @@ export default function Home() {
         </>
       )}
     </main>
+      <HelpModal />
   );
 }
 
