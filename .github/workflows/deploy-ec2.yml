@@ -3,11 +3,7 @@ name: Deploy Pokerverse to EC2
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'packages/**'
-      - 'pokerverse-miniapp/**'
-      - 'infra/**'
-      - '.github/workflows/deploy-ec2.yml'
+  workflow_dispatch:
 
 env:
   IMAGE_OWNER: ${{ vars.IMAGE_OWNER || github.repository_owner }}
