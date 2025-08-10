@@ -6,7 +6,8 @@ import CommunityBoard from './layers/CommunityBoard'
 import SeatsLayer from './layers/SeatsLayer'
 import PotLayer from './layers/PotLayer'
 import ActionBanner from './layers/ActionBanner'
-import FXLayer, { FXHandle } from './layers/FXLayer'
+import FXLayer from './layers/FXLayer'
+import type { FXHandle } from './layers/FXLayer'
 import type { TableState } from './types'
 import { useTextures } from '../assets/TextureStore'
 
@@ -26,16 +27,14 @@ export default function TableCanvas({ width, height, state }:{width:number;heigh
   }, [state.lastAction, chipTexture, state.maxSeats])
 
   return (
-    <div>
-      <Container scale={{x:scale,y:scale}} x={(width-REF_W*scale)/2} y={(height-REF_H*scale)/2}>
-        <TableBackground />
-        <PotLayer amount={state.potAmount} />
-        <CommunityBoard cards={state.community} />
-        <SeatsLayer state={state} />
-        <ActionBanner last={state.lastAction ?? null} />
-        <FXLayer ref={fxRef} />
-      </Container>
-    </div>
+    <container scale={{x:scale,y:scale}} x={(width-REF_W*scale)/2} y={(height-REF_H*scale)/2}>
+      <TableBackground />
+      <PotLayer amount={state.potAmount} />
+      <CommunityBoard cards={state.community} />
+      <SeatsLayer state={state} />
+      <ActionBanner last={state.lastAction ?? null} />
+      <FXLayer ref={fxRef} />
+    </container>
   )
 }
 

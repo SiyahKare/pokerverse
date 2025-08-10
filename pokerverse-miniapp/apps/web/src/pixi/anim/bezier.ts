@@ -8,9 +8,13 @@ const q = (t:number, p0:Pt, p1:Pt, p2:Pt) => {
 }
 
 export function chipMove(container: Container, tex: Texture, from: Pt, to: Pt, ms=250) {
+  if (!container) return
   const ctrl = { x: (from.x + to.x)/2, y: Math.min(from.y, to.y) - 80 }
-  const s = new PixiSprite(tex); s.anchor.set(0.5); s.position.set(from.x, from.y); s.alpha = 0
-  container.addChild(s)
+  const s = new PixiSprite(tex)
+  s.anchor.set(0.5)
+  s.position.set(from.x, from.y)
+  s.alpha = 0
+  try { container.addChild(s) } catch { return }
   gsap.to(s, { alpha: 1, duration: 0.08 })
   const obj = { t: 0 }
   gsap.to(obj, {

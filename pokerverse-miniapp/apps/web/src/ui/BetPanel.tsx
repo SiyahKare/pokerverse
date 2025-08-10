@@ -54,20 +54,29 @@ export default function BetPanel(props: BetPanelProps) {
 function SlideToConfirm(props: { className?: string; text: string; onStart?(): void; onConfirm(): void; onCancel?(): void; }) {
   const { className, text, onStart, onConfirm, onCancel } = props
   const trackRef = useRef<HTMLDivElement>(null)
+  const knobRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState(0)
+  const activePointerIdRef = useRef<number | null>(null)
+
+  const updateFromClientX = (clientX: number) => {
+    if (!trackRef.current) return
+    const rect = trackRef.current.getBoundingClientRect()
+    const x = Math.min(Math.max(clientX - rect.left, 0), rect.width)
+    setProgress(x / rect.width)
+  }
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (!dragging || !trackRef.current) return
-      const rect = trackRef.current.getBoundingClientRect()
-      const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width)
-      setProgress(x / rect.width)
-    }
-    const onUp = () => {
       if (!dragging) return
+      if (activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
+      e.preventDefault()
+      updateFromClientX(e.clientX)
+    }
+    const finish = (confirmed: boolean) => {
       setDragging(false)
-      if (progress > 0.85) {
+      activePointerIdRef.current = null
+      if (confirmed) {
         setProgress(1)
         onConfirm()
         setTimeout(() => setProgress(0), 200)
@@ -76,22 +85,67 @@ function SlideToConfirm(props: { className?: string; text: string; onStart?(): v
         setProgress(0)
       }
     }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    const onUp = (e: PointerEvent) => {
+      if (!dragging) return
+      if (activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
+      e.preventDefault()
+      finish(progress > 0.85)
+    }
+    const onCancelEv = (e: PointerEvent) => {
+      if (!dragging) return
+      if (activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
+      e.preventDefault()
+      finish(false)
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp, { passive: false })
+    window.addEventListener('pointercancel', onCancelEv, { passive: false })
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancelEv)
     }
-  }, [dragging, progress])
+  }, [dragging, progress, onConfirm, onCancel])
+
+  const progressFillWidth = trackRef.current
+    ? `${Math.max(48, progress * trackRef.current.clientWidth)}px`
+    : `${progress * 100}%`
+
+  const knobTranslateX = progress * (((trackRef.current?.clientWidth ?? 0)) - 48)
 
   return (
     <div className={className}>
-      <div ref={trackRef} className="relative h-12 w-full select-none rounded-2xl border" style={{ background: '#1f2937', borderColor: 'rgba(255,255,255,0.08)' }}>
-        <div className="absolute inset-y-0 left-0 rounded-2xl" style={{ width: `${Math.max(48, progress*100)}%`, background: 'var(--tg-btn)', transition: dragging ? 'none' : 'width 120ms ease' }} />
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div
+        ref={trackRef}
+        className="relative h-12 w-full select-none rounded-2xl border touch-none"
+        style={{ background: '#1f2937', borderColor: 'rgba(255,255,255,0.08)' }}
+        onPointerDown={(e)=> {
+          e.preventDefault()
+          activePointerIdRef.current = e.pointerId
+          ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+          setDragging(true)
+          onStart?.()
+          updateFromClientX(e.clientX)
+        }}
+      >
+        <div className="absolute inset-y-0 left-0 rounded-2xl" style={{ width: progressFillWidth, background: 'var(--tg-btn)', transition: dragging ? 'none' : 'width 120ms ease' }} />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <span className="text-sm font-semibold" style={{ color: 'var(--tg-btn-text)' }}>{text}</span>
         </div>
-        <div className="absolute top-1 left-1 h-10 w-10 cursor-pointer touch-none select-none rounded-2xl shadow" style={{ transform: `translateX(${progress * ((trackRef.current?.clientWidth ?? 0) - 48)}px)`, background: 'var(--tg-btn)', transition: dragging ? 'none' : 'transform 120ms ease' }} onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragging(true); onStart?.() }} />
+        <div
+          ref={knobRef}
+          className="absolute top-1 left-1 h-10 w-10 cursor-pointer touch-none select-none rounded-2xl shadow"
+          style={{ transform: `translateX(${knobTranslateX}px)`, background: 'var(--tg-btn)', transition: dragging ? 'none' : 'transform 120ms ease' }}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            activePointerIdRef.current = e.pointerId
+            ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+            setDragging(true)
+            onStart?.()
+            updateFromClientX(e.clientX)
+          }}
+        />
       </div>
     </div>
   )

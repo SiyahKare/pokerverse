@@ -5,14 +5,15 @@ import ERC20 from './abis/ERC20.json'
 import addresses from './addresses.json'
 import EthereumProvider from '@walletconnect/ethereum-provider'
 
-const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 31337)
-const RPC_URL = import.meta.env.VITE_RPC_URL || 'http://127.0.0.1:8545'
-const WC_PROJECT_ID = import.meta.env.VITE_WC_PROJECT_ID || ''
+const CHAIN_ID = Number((import.meta as any).env.VITE_CHAIN_ID || 31337)
+const RPC_URL = (import.meta as any).env.VITE_RPC_URL || 'http://127.0.0.1:8545'
+// WC_PROJECT_ID hem VITE_WC_PROJECT_ID hem de WC_PROJECT_ID anahtarıyla desteklenir
+const WC_PROJECT_ID = (import.meta as any).env.VITE_WC_PROJECT_ID || (import.meta as any).env.WC_PROJECT_ID || ''
 
 const chain = CHAIN_ID === 11155111 ? sepolia : hardhat
 const ADDR: any = (addresses as any)[CHAIN_ID] || {}
-const USDC = (import.meta.env.VITE_USDC as `0x${string}`) || (ADDR.USDC as `0x${string}`)
-const CHIP = (import.meta.env.VITE_CHIPBANK as `0x${string}`) || (ADDR.CHIPBANK as `0x${string}`)
+const USDC = ((import.meta as any).env.VITE_USDC as `0x${string}`) || (ADDR.USDC as `0x${string}`)
+const CHIP = ((import.meta as any).env.VITE_CHIPBANK as `0x${string}`) || (ADDR.CHIPBANK as `0x${string}`)
 
 export const publicClient = createPublicClient({ chain, transport: http(RPC_URL) })
 

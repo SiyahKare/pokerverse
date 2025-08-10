@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react'
-import { Stage } from '@pixi/react'
+import { Application, extend } from '@pixi/react'
+import { Container as PixiContainer, Sprite as PixiSprite, Graphics as PixiGraphics } from 'pixi.js'
+import { Text as PixiText } from '@pixi/text'
+
+// Pixi bileşenlerini @pixi/react kataloğuna kaydet
+extend({ Container: PixiContainer, Sprite: PixiSprite, Text: PixiText as any, Graphics: PixiGraphics })
 import TableCanvas from './pixi/TableCanvas'
 import type { TableState } from './pixi/types'
 import './index.css'
 import { TextureProvider } from './assets/TextureStore'
 import { useTelegramTheme } from './hooks/useTelegramTheme'
 import { useTelegramUI } from './hooks/useTelegramUI'
+import { useHaptics } from './hooks/useHaptics'
 import ActionBar from './ui/ActionBar'
 import BetPanel from './ui/BetPanel'
 import Toast from './ui/Toast'
+import Hud from '@miniapp/Hud'
+import CashOutModal from '@miniapp/CashOutModal'
+import { connectWC, getAccount } from '@miniapp/web3'
 
 function useWindowSize() {
   const [s, set] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -23,6 +32,7 @@ export default function App() {
   const { tg, viewportHeight } = useTelegramTheme()
   const { w } = useWindowSize()
   const h = viewportHeight || window.innerHeight
+  const hfx = useHaptics(tg)
 
   const [state, setState] = useState<TableState>({
     maxSeats: 9,
@@ -33,7 +43,6 @@ export default function App() {
   })
 
   useTelegramUI(tg, { mainButton: { text: 'Rebuy', visible: false }, backButton: { visible: true, onClick: () => console.log('back') } })
-  const haptic = (k:'light'|'medium'|'rigid'|'success'|'warning')=>{ if(!tg) return; if(k==='success'||k==='warning') return tg.haptics.notificationOccurred(k); tg.haptics.impactOccurred(k) }
 
   useEffect(()=>{
     let alive = true as boolean
@@ -41,7 +50,7 @@ export default function App() {
     const url = (import.meta as any).env.VITE_WS_URL as string | undefined
     if(!url) return
     function connect(){
-      const ws = new WebSocket(url)
+      const ws = new WebSocket(url!)
       ;(window as any).pvSend = (payload:any)=> ws.readyState===1 && ws.send(JSON.stringify({type:'ACTION', payload}))
       ws.onopen = () => { hb = setInterval(()=> ws.readyState===1 && ws.send(JSON.stringify({ type:'PING' })), 15000) }
       ws.onmessage = (ev: MessageEvent) => {
@@ -58,7 +67,11 @@ export default function App() {
   },[])
 
   const [betOpen,setBetOpen]=useState(false)
+  const [cashOpen,setCashOpen]=useState(false)
   const [toast, setToast] = useState('')
+  const [addr, setAddr] = useState<string | null>(null)
+  useEffect(()=>{ setAddr(getAccount() || null) }, [])
+
   const bb=100, toCall=120, lastAgg=200, stack=5000
   const pot=state.potAmount
   // basit sınırlar (server nihai hakem):
@@ -67,33 +80,57 @@ export default function App() {
   const step=Math.max(1, Math.round(bb/4))
 
   return (
-    <TextureProvider>
-      <div className="w-full" style={{ height: h, background: 'var(--tg-bg)', color: 'var(--tg-text)' }}>
-        <Stage width={w} height={h} options={{ resolution: window.devicePixelRatio, antialias: true, backgroundAlpha: 0 }}>
-          <TableCanvas width={w} height={h} state={state}/>
-        </Stage>
+    <>
+      <TextureProvider>
+        <div className="w-full" style={{ height: h, background: 'var(--tg-bg)', color: 'var(--tg-text)' }}>
+          <Application width={w} height={h} resolution={window.devicePixelRatio} antialias backgroundAlpha={0}>
+            <TableCanvas width={w} height={h} state={state} />
+          </Application>
 
-        <ActionBar
-          canCheck={false}
-          callAmount={toCall}
-          canBetOrRaise={true}
-          onFold={()=> haptic('light')}
-          onCheckOrCall={()=> { haptic('medium'); (window as any).pvSend?.({ seat:2, kind:'call', amount:toCall }) }}
-          onBetOrRaise={()=> setBetOpen(true)}
-        />
+          {/* Overlay HUD */}
+          <Hud />
 
-        <BetPanel
-          open={betOpen}
-          min={minBet} max={maxBet} step={step}
-          pot={pot} call={toCall}
-          initial={Math.max(minBet, toCall)}
-          onConfirm={(v)=> { haptic('success'); setBetOpen(false); (window as any).pvSend?.({ seat:2, kind:'raise', amount:v }) }}
-          onClose={()=> setBetOpen(false)}
-          haptic={haptic}
-        />
-      </div>
-    </TextureProvider>
+          {/* Connect / CashOut buttons */}
+          <div style={{ position:'absolute', top:12, right:12, display:'flex', gap:8 }}>
+            {!addr && (
+              <button
+                onClick={async ()=> { try { const a = await connectWC(); setAddr(a) } catch {} }}
+                className="btn-tap"
+                style={{ background: 'var(--tg-btn)', color: 'var(--tg-btn-text)', padding:'8px 12px', borderRadius:12 }}
+              >Connect</button>
+            )}
+            {addr && (
+              <button
+                onClick={()=> setCashOpen(true)}
+                className="btn-tap"
+                style={{ background: '#2b3440', color: 'var(--tg-text)', padding:'8px 12px', borderRadius:12 }}
+              >Cash Out</button>
+            )}
+          </div>
+
+          <ActionBar
+            canCheck={false}
+            callAmount={toCall}
+            canBetOrRaise={true}
+            onFold={()=> hfx.impact('light')}
+            onCheckOrCall={()=> { hfx.impact('medium'); (window as any).pvSend?.({ seat:2, kind:'call', amount:toCall }) }}
+            onBetOrRaise={()=> { hfx.impact('light'); setBetOpen(true) }}
+          />
+
+          <BetPanel
+            open={betOpen}
+            min={minBet} max={maxBet} step={step}
+            pot={pot} call={toCall}
+            initial={Math.max(minBet, toCall)}
+            onConfirm={(v)=> { hfx.notify('success'); setBetOpen(false); (window as any).pvSend?.({ seat:2, kind:'raise', amount:v }) }}
+            onClose={()=> setBetOpen(false)}
+            haptic={(k)=> (k==='success'||k==='warning') ? hfx.notify(k as any) : hfx.impact(k as any)}
+          />
+          <CashOutModal open={cashOpen} onClose={()=> setCashOpen(false)} />
+        </div>
+      </TextureProvider>
       <Toast text={toast} onClose={()=> setToast('')} />
+    </>
   )
 }
 

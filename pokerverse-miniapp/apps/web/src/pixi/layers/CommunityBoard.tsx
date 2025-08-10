@@ -1,10 +1,10 @@
-import { Container, Sprite } from '@pixi/react'
+// JSX intrinsic kullanım: container/sprite
+import { Sprite as PixiSprite } from 'pixi.js'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTextures } from '../../assets/TextureStore'
 import { getBoardSlots } from '../layout/layout'
 import type { CardId } from '../../assets/atlas-loader'
 import { flipTo } from '../anim/flip'
-import type { Sprite as PixiSprite } from 'pixi.js'
 
 export default function CommunityBoard({ cards }: { cards: string[] }) {
   const { cardTexture, cardBack } = useTextures()
@@ -32,9 +32,9 @@ export default function CommunityBoard({ cards }: { cards: string[] }) {
   }, [cards, cardTexture, cardBack])
   if (!cardTexture) return null
   return (
-    <Container>
+    <container>
       {cards.map((c, i) => (
-        <Sprite
+        <sprite
           key={i}
           ref={(el)=> (refs.current[i] = el as any)}
           texture={cardTexture(c as CardId)}
@@ -43,7 +43,7 @@ export default function CommunityBoard({ cards }: { cards: string[] }) {
           anchor={0.5}
         />
       ))}
-    </Container>
+    </container>
   )
 }
 

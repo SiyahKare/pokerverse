@@ -10,11 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@pixi/react": "8.0.3",
+    "@pixi/react": "^8.0.3",
+    "@tanstack/react-query": "^5.84.2",
+    "@twa-dev/sdk": "^8.0.2",
     "gsap": "^3.13.0",
-    "pixi.js": "8.12.0",
+    "pixi.js": "^8.12.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

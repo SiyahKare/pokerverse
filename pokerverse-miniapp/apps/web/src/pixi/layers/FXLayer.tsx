@@ -1,4 +1,3 @@
-import { Container } from '@pixi/react'
 import { forwardRef, useImperativeHandle, useRef } from 'react'
 import type { Container as PixiContainer, Texture } from 'pixi.js'
 import { chipMove } from '../anim/bezier'
@@ -10,9 +9,13 @@ export type FXHandle = {
 export default forwardRef<FXHandle, {}>(function FXLayer(_, ref) {
   const layer = useRef<PixiContainer>(null as any)
   useImperativeHandle(ref, () => ({
-    chip: (tex, from, to, ms=250) => chipMove(layer.current as any, tex, from, to, ms)
+    chip: (tex, from, to, ms=250) => {
+      const c = layer.current as unknown as PixiContainer | null
+      if (!c || !c.parent) return
+      chipMove(c as any, tex, from, to, ms)
+    }
   }), [])
-  return <Container ref={layer as any} />
+  return <container ref={layer as any} />
 })
 
 
