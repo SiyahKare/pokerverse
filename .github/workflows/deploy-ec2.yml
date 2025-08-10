@@ -48,6 +48,13 @@ jobs:
           context: packages/frontend
           file: packages/frontend/Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_WC_PROJECT_ID=${{ secrets.VITE_WC_PROJECT_ID }}
+            NEXT_PUBLIC_RPC_URL=${{ secrets.RPC_URL }}
+            NEXT_PUBLIC_USDC=${{ vars.USDC_ADDRESS }}
+            NEXT_PUBLIC_BET=${{ vars.BET_ADDRESS }}
+            NEXT_PUBLIC_CHIPBANK=${{ vars.CHIPBANK_ADDRESS }}
+            NEXT_PUBLIC_BACKEND_URL=https://${{ vars.API_HOST }}
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-frontend:${{ env.TAG }}
             ghcr.io/${{ env.IMAGE_OWNER }}/pokerverse-frontend:latest
