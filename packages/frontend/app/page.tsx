@@ -195,9 +195,10 @@ export default function Home() {
   }))
   const myCards: Record<number, string[]> = (seat !== null)
     ? { [seat]: table?.holes?.[seat] ?? [] }
-    : {}
+    : {};
 
   return (
+    <>
     <main className="p-6 max-w-6xl mx-auto space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Pokerverse MVP</h1>
@@ -259,7 +260,8 @@ export default function Home() {
         </>
       )}
     </main>
-      <HelpModal />
+    <HelpModal />
+    </>
   );
 }
 
