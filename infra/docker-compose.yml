@@ -19,8 +19,8 @@ x-env: &common_env
 services:
   backend:
     build:
-      context: ../packages/backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: infra/Dockerfile.backend
     # image: ghcr.io/ORG/pokerverse-backend:latest
     environment:
       <<: *common_env
@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_WC_PROJECT_ID: ${WC_PROJECT_ID}
-        NEXT_PUBLIC_RPC_URL: ${RPC_URL}
+        NEXT_PUBLIC_RPC_URL: ${VITE_RPC_URL}
         NEXT_PUBLIC_USDC: ${USDC_ADDRESS}
         NEXT_PUBLIC_BET: ${BET_ADDRESS}
         NEXT_PUBLIC_CHIPBANK: ${CHIPBANK_ADDRESS}
@@ -71,12 +71,12 @@ services:
 
   miniapp:
     build:
-      context: ../pokerverse-miniapp
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: infra/Dockerfile.web
       args:
         VITE_WC_PROJECT_ID: ${WC_PROJECT_ID}
         VITE_CHAIN_ID: ${CHAIN_ID}
-        VITE_RPC_URL: ${RPC_URL}
+        VITE_RPC_URL: ${VITE_RPC_URL}
         VITE_USDC: ${USDC_ADDRESS}
         VITE_CHIPBANK: ${CHIPBANK_ADDRESS}
         VITE_BET: ${BET_ADDRESS}
@@ -90,6 +90,21 @@ services:
       - traefik.http.routers.pokerverse-mini.entrypoints=websecure
       - traefik.http.routers.pokerverse-mini.tls.certresolver=le
       - traefik.http.services.pokerverse-mini.loadbalancer.server.port=8080
+    restart: always
+
+  ws:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.ws
+    expose:
+      - "3011"
+    networks: [appnet, proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pokerverse-ws.rule=Host(`${WS_HOST}`)
+      - traefik.http.routers.pokerverse-ws.entrypoints=websecure
+      - traefik.http.routers.pokerverse-ws.tls.certresolver=le
+      - traefik.http.services.pokerverse-ws.loadbalancer.server.port=3011
     restart: always
 
   telegram-bot:

@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    command: anvil --host 0.0.0.0 --chain-id ${CHAIN_ID:-31337}
+    ports:
+      - "8545:8545"
+    restart: unless-stopped
+
+  ws:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.ws
+    ports:
+      - "3011:3011"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      RPC_URL: http://anvil:8545
+      WC_PROJECT_ID: ${WC_PROJECT_ID}
+      USDC_ADDRESS: ${USDC_ADDRESS}
+      BET_ADDRESS: ${BET_ADDRESS}
+      CHIPBANK_ADDRESS: ${CHIPBANK_ADDRESS}
+      DEALER_PK: ${DEALER_PK}
+      RAKE_BPS: ${RAKE_BPS:-100}
+    depends_on:
+      - anvil
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  miniapp:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+      args:
+        VITE_WC_PROJECT_ID: ${WC_PROJECT_ID}
+        VITE_CHAIN_ID: ${CHAIN_ID}
+        VITE_RPC_URL: ${VITE_RPC_URL}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:3011}
+        VITE_USDC: ${USDC_ADDRESS}
+        VITE_CHIPBANK: ${CHIPBANK_ADDRESS}
+        VITE_BET: ${BET_ADDRESS}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  telegram-bot:
+    build:
+      context: ../packages/telegram-bot
+      dockerfile: Dockerfile
+    environment:
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:8080}
+      API_URL: ${API_URL:-http://localhost:3001}
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+
+

@@ -19,12 +19,17 @@ export default function CashOutModal({ open, onClose }:{ open:boolean; onClose:(
     const a = getAccount(); setAddr(a || null)
     ;(async () => {
       if (!a) return
-      const [b, d, p] = await Promise.all([
-        publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'balances', args:[TID, a] }) as Promise<bigint>,
-        publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'deposits', args:[TID, a] }) as Promise<bigint>,
-        publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'polOnCashoutBps' }) as Promise<number>,
-      ])
-      setBal(b); setDep(d); setBps(Number(p))
+      try {
+        const [b, d, p] = await Promise.all([
+          publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'balances', args:[TID, a] }) as Promise<bigint>,
+          publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'deposits', args:[TID, a] }) as Promise<bigint>,
+          publicClient.readContract({ abi: ChipBank as any, address: CHIP, functionName:'polOnCashoutBps' }) as Promise<number>,
+        ])
+        setBal(b); setDep(d); setBps(Number(p))
+      } catch (e) {
+        // okunabilir fallback: değerleri 0 bırak
+        // console.debug('CashOut preview read failed', e)
+      }
     })()
   }, [open])
 
@@ -42,21 +47,29 @@ export default function CashOutModal({ open, onClose }:{ open:boolean; onClose:(
   if (!open) return null
   return (
     <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,.5)'}}>
-      <div style={{maxWidth:360, margin:'10% auto', background:'#fff', borderRadius:12, padding:16}}>
-        <h3 style={{margin:'0 0 8px'}}>Cash Out Önizleme</h3>
+      <div style={{
+          maxWidth:360,
+          margin:'10% auto',
+          background:'var(--tg-sec-bg)',
+          color:'var(--tg-text)',
+          border:'1px solid rgba(255,255,255,0.08)',
+          borderRadius:12,
+          padding:16
+        }}>
+        <h3 style={{margin:'0 0 8px', color:'var(--tg-text)'}}>Cash Out Önizleme</h3>
         <div style={{fontSize:13}}>
-          <div>Balance: <b>{toNum6(bal).toFixed(6)} USDC</b></div>
+          <div>Balance: <b style={{color:'var(--tg-text)'}}>{toNum6(bal).toFixed(6)} USDC</b></div>
           <div>Deposits: {toNum6(dep).toFixed(6)} USDC</div>
-          <div>LP Cut ({(bps/100).toFixed(2)}% {profitOnly?'profit-only':'gross'}): <b>{toNum6(lp).toFixed(6)} USDC</b></div>
-          <div>Net: <b>{toNum6(net).toFixed(6)} USDC</b></div>
+          <div>LP Cut ({(bps/100).toFixed(2)}% {profitOnly?'profit-only':'gross'}): <b style={{color:'var(--tg-text)'}}>{toNum6(lp).toFixed(6)} USDC</b></div>
+          <div>Net: <b style={{color:'var(--tg-text)'}}>{toNum6(net).toFixed(6)} USDC</b></div>
           <label style={{display:'flex', gap:8, marginTop:8}}>
             <input type="checkbox" checked={profitOnly} onChange={e=>setProfitOnly(e.target.checked)} />
             Profit-only
           </label>
         </div>
         <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:12}}>
-          <button onClick={onClose}>Vazgeç</button>
-          <button onClick={confirm} style={{background:'#000', color:'#fff', padding:'6px 10px', borderRadius:8}}>
+          <button onClick={onClose} style={{background:'transparent', color:'var(--tg-text)', border:'1px solid rgba(255,255,255,0.2)', padding:'6px 10px', borderRadius:8}}>Vazgeç</button>
+          <button onClick={confirm} style={{background:'var(--tg-btn)', color:'var(--tg-btn-text)', padding:'6px 10px', borderRadius:8}}>
             Onayla & Cash Out
           </button>
         </div>

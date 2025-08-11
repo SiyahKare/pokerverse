@@ -47,7 +47,15 @@ export default function App() {
   useEffect(()=>{
     let alive = true as boolean
     let t: any, hb: any
-    const url = (import.meta as any).env.VITE_WS_URL as string | undefined
+    const url = (() => {
+      const envUrl = (import.meta as any).env.VITE_WS_URL as string | undefined
+      const forceLocal = ((import.meta as any).env.VITE_FORCE_LOCAL_WS ?? '').toString().toLowerCase()
+      const force = forceLocal === '1' || forceLocal === 'true'
+      const host = window.location.hostname
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1'
+      // Lokal geliştirmede doğrudan yerel WS'e bağlan
+      return (force || isLocal) ? 'ws://127.0.0.1:3011' : envUrl
+    })()
     if(!url) return
     function connect(){
       const ws = new WebSocket(url!)
