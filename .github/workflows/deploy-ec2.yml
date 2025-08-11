@@ -111,7 +111,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
           script: |
-            sudo mkdir -p /opt/pokerverse
+            sudo mkdir -p /opt/pokerverse/infra
             sudo chown -R $USER:$USER /opt/pokerverse
       - name: Configure SSH (optional)
         uses: webfactory/ssh-agent@v0.9.0
@@ -126,9 +126,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
           source: ./infra/docker-compose.prod.yml
-          target: /opt/pokerverse
+          target: /opt/pokerverse/infra
           overwrite: true
-          strip_components: 1
 
       - name: Render .env on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -165,8 +164,8 @@ jobs:
           script: |
             cd /opt/pokerverse
             docker network ls | grep traefik_proxy || docker network create traefik_proxy
-            docker compose --env-file .env -f docker-compose.prod.yml pull
-            docker compose --env-file .env -f docker-compose.prod.yml up -d
-            docker compose -f docker-compose.prod.yml ps
+            docker compose --env-file .env -f infra/docker-compose.prod.yml pull
+            docker compose --env-file .env -f infra/docker-compose.prod.yml up -d
+            docker compose -f infra/docker-compose.prod.yml ps
 
 
