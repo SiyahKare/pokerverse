@@ -1,8 +1,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-# Lock dosyası bulunmadığında ci yerine install kullan
-RUN npm install --omit=dev
+RUN npm ci || npm install
 
 FROM node:20-alpine AS build
 WORKDIR /app
