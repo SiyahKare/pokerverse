@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { type Request, type Response } from "express";
 import { createServer } from "http";
 import { Server as IOServer } from "socket.io";
 import { ethers } from "ethers";
@@ -30,11 +30,44 @@ const chip = CHIPBANK ? new ethers.Contract(CHIPBANK, (ChipBankABI as any), deal
 const tables = new Map<number, Table>();
 let nextTableId = 0;
 
+// basit per-socket rate limit (kaynak koruma)
+const actionWindowMs = 5_000;
+const actionMaxPerWindow = 30; // 30/5s
+const actionCounters = new Map<string, { windowStart: number; count: number }>();
+
+function withinRateLimit(socketId: string): boolean {
+  const now = Date.now();
+  const rec = actionCounters.get(socketId) || { windowStart: now, count: 0 };
+  if (now - rec.windowStart > actionWindowMs) {
+    rec.windowStart = now;
+    rec.count = 0;
+  }
+  rec.count += 1;
+  actionCounters.set(socketId, rec);
+  return rec.count <= actionMaxPerWindow;
+}
+
+function listTables() {
+  return Array.from(tables.values()).map((t) => publicTable(t));
+}
+
 // Socket.IO — odalar + masa akışı
 io.on("connection", (socket) => {
-  socket.on("joinLobby", () => socket.join("lobby"));
+  socket.on("joinLobby", () => {
+    socket.join("lobby");
+    // ilk girişte mevcut tabloları gönder
+    socket.emit("tableList", listTables());
+  });
 
-  socket.on("createTable", (seats: number = 2, cb?: Function) => {
+  socket.on("listTables", (cb?: Function) => {
+    cb && cb({ ok: true, tables: listTables() });
+  });
+
+  socket.on("createTable", (arg: any = 2, cb?: Function) => {
+    const seats: number = typeof arg === 'number' ? arg : Number(arg?.seats ?? 2);
+    if (!Number.isFinite(seats) || seats < 2 || seats > 9) {
+      return cb && cb({ ok: false, error: "invalid seats" });
+    }
     const t = initTable(nextTableId++, seats, 5, 10, 1000);
     tables.set(t.id, t);
     io.to("lobby").emit("tableCreated", publicTable(t));
@@ -45,6 +78,10 @@ io.on("connection", (socket) => {
     const t = tables.get(tableId);
     if (!t) return cb && cb({ ok: false, error: "no table" });
     try {
+      // aynı adres zaten oturmuş mu?
+      if (t.players.some((p) => p.addr.toLowerCase() === (addr || "").toLowerCase())) {
+        return cb && cb({ ok: false, error: "already seated" });
+      }
       const seat = sitDown(t, socket.id, addr as any);
       socket.join(`table:${tableId}`);
       io.to(`table:${tableId}`).emit("tableState", publicTable(t));
@@ -53,9 +90,22 @@ io.on("connection", (socket) => {
     } catch (e:any) { cb && cb({ ok:false, error: e.message }); }
   });
 
+  // reconnect: aynı addr ile masaya geri bağlanma
+  socket.on("reconnectSeat", (tableId: number, addr: string, cb?: Function) => {
+    const t = tables.get(tableId);
+    if (!t) return cb && cb({ ok: false, error: "no table" });
+    const p = t.players.find((pl) => pl.addr.toLowerCase() === (addr||"").toLowerCase());
+    if (!p) return cb && cb({ ok: false, error: "not found" });
+    p.socketId = socket.id;
+    socket.join(`table:${tableId}`);
+    io.to(`table:${tableId}`).emit("tableState", publicTable(t));
+    cb && cb({ ok: true, seat: p.seat });
+  });
+
   socket.on("action", (tableId: number, seat: number, a: Action, cb?: Function) => {
     const t = tables.get(tableId);
     if (!t) return cb && cb({ ok: false, error: "no table" });
+    if (!withinRateLimit(socket.id)) return cb && cb({ ok: false, error: "rate_limited" });
     const res = handleAction(io, t, seat, a);
     if (!res.ok) return cb && cb(res);
     io.to(`table:${tableId}`).emit("tableState", publicTable(t));
@@ -64,7 +114,7 @@ io.on("connection", (socket) => {
 });
 
 // REST — propose & finalize
-app.post("/propose", async (req, res) => {
+app.post("/propose", async (req: Request, res: Response) => {
   try {
     if (!bet) return res.status(400).json({ ok:false, error: "BET_ADDRESS not set" });
     const { gameId, winner }:{gameId:number;winner:string} = req.body;
@@ -75,7 +125,7 @@ app.post("/propose", async (req, res) => {
   } catch (e:any) { res.status(500).json({ ok:false, error: e.message }); }
 });
 
-app.post("/finalize", async (req, res) => {
+app.post("/finalize", async (req: Request, res: Response) => {
   try {
     if (!bet) return res.status(400).json({ ok:false, error: "BET_ADDRESS not set" });
     const { gameId }:{gameId:number} = req.body;
@@ -87,6 +137,11 @@ app.post("/finalize", async (req, res) => {
 });
 
 httpServer.listen(PORT, () => console.log(`Dealer API & Socket.IO listening :${PORT}`));
+
+// REST: tablo listesi (gözlem/sağlık için)
+app.get("/tables", (_req: Request, res: Response) => {
+  res.json({ ok: true, tables: listTables() });
+});
 
 // Auto finalize hook (MVP): tableId == gameId mapping varsayımı
 setHooks({

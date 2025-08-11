@@ -362,14 +362,21 @@ export function initTable(id: number, seats = 2, sb = 5, bb = 10, buyIn = 1000):
   return {
     id, seats, smallBlind: sb, bigBlind: bb, sbPos: 0, bbPos: 1,
     players: [], started: false, street: "preflop", pot: 0,
-    currentBet: 0, minRaise: bb, turnSeat: 0, lastAggressorSeat: null
+    currentBet: 0, minRaise: bb, turnSeat: 0, lastAggressorSeat: null,
+    deck: [], board: [], holes: {} as Record<number, string[]>
   };
 }
 
 export function sitDown(t: Table, socketId: string, addr: Addr) {
   if (t.players.length >= t.seats) throw new Error("full");
-  const seat = t.players.length;
+  // boş koltuk bul (adres tekrarına izin verme)
+  if (t.players.some(p => p.addr.toLowerCase() === addr.toLowerCase())) throw new Error("already seated");
+  const occupied = new Set(t.players.map(p => p.seat));
+  let seat = 0;
+  for (let i = 0; i < t.seats; i++) { if (!occupied.has(i)) { seat = i; break; } }
   t.players.push({ socketId, addr, seat, stack: 1000, inHand: false, committed: 0, actedThisRound: false });
+  // SB/BB başlangıç konumlarını geçerli aralığa yedir
+  t.sbPos = (t.sbPos) % t.seats; t.bbPos = (t.bbPos) % t.seats;
   return seat;
 }
 

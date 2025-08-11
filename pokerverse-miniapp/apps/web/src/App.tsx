@@ -79,6 +79,7 @@ export default function App() {
       ws.onmessage = (ev: MessageEvent) => {
         try {
           const msg = JSON.parse(ev.data as string)
+          if (msg.type === 'SEAT') setMySeat(msg.payload?.seat)
           if (msg.type === 'TABLE_STATE') setState(msg.payload)
           if (msg.type === 'ACTION_REJECTED') setToast(msg.payload?.reason || 'Action rejected')
         } catch {}
@@ -109,12 +110,17 @@ export default function App() {
     return ()=>{ cancelled = true }
   }, [addr])
 
-  const bb=100, toCall=120, lastAgg=200, stack=5000
-  const pot=state.potAmount
-  // basit sınırlar (server nihai hakem):
-  const minBet=Math.max(bb, toCall+Math.max(lastAgg, bb))
-  const maxBet=stack
-  const step=Math.max(1, Math.round(bb/4))
+  const [mySeat, setMySeat] = useState<number | null>(null)
+  const me = mySeat!=null ? state.seats[mySeat] : undefined
+  const bb = (state as any).bigBlind ?? 100
+  const pot = state.potAmount
+  const myBet = me?.bet ?? 0
+  const curr = (state as any).currentBet ?? 0
+  const lastRaise = (state as any).lastRaiseSize ?? bb
+  const toCall = Math.max(0, curr - myBet)
+  const minBet = Math.max(bb, toCall + Math.max(lastRaise, bb))
+  const maxBet = me?.stack ?? 0
+  const step = Math.max(1, Math.round(bb/4))
 
   return (
     <>
@@ -151,7 +157,7 @@ export default function App() {
             callAmount={toCall}
             canBetOrRaise={true}
             onFold={()=> hfx.impact('light')}
-            onCheckOrCall={()=> { hfx.impact('medium'); (window as any).pvSend?.({ seat:2, kind:'call', amount:toCall }) }}
+            onCheckOrCall={()=> { hfx.impact('medium'); (window as any).pvSend?.({ seat: mySeat, kind: toCall===0?'check':'call', amount:toCall }) }}
             onBetOrRaise={()=> { hfx.impact('light'); setBetOpen(true) }}
           />
 
@@ -160,7 +166,7 @@ export default function App() {
             min={minBet} max={maxBet} step={step}
             pot={pot} call={toCall}
             initial={Math.max(minBet, toCall)}
-            onConfirm={(v)=> { hfx.notify('success'); setBetOpen(false); (window as any).pvSend?.({ seat:2, kind:'raise', amount:v }) }}
+            onConfirm={(v)=> { hfx.notify('success'); setBetOpen(false); (window as any).pvSend?.({ seat: mySeat, kind: curr===0?'bet':'raise', amount:v }) }}
             onClose={()=> setBetOpen(false)}
             haptic={(k)=> (k==='success'||k==='warning') ? hfx.notify(k as any) : hfx.impact(k as any)}
           />

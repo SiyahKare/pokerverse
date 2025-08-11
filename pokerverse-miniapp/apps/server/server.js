@@ -37,12 +37,19 @@ let table = {
   sidePots: [],
   turnDeadline: null,
   button: -1,
+  currentBet: 0,
+  lastRaiseSize: BIG_BLIND,
+  bigBlind: BIG_BLIND,
 };
 
 function seatedPlayers(){ return table.seats.filter(s=>s && s.isSitting) }
 function activePlayers(){ return table.seats.filter(s=>s && s.isSitting && s.inHand) }
 
 function broadcast(msg) {
+  // sync meta before broadcast
+  table.currentBet = currentBet;
+  table.lastRaiseSize = lastRaiseSize;
+  table.bigBlind = BIG_BLIND;
   const data = JSON.stringify(msg);
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(data);

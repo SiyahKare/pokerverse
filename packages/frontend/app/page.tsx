@@ -170,6 +170,8 @@ export default function Home() {
 
   useEffect(() => {
     socket.emit('joinLobby')
+    socket.emit('listTables', (res:any)=>{ if(res?.ok) setTables(res.tables) })
+    socket.on('tableList', (list:any[]) => setTables(list))
     socket.on('tableCreated', (t:any) => setTables(prev => [...prev, t]))
     socket.on('tableState', (t:any) => { setTable(t); setTables(prev => prev.map(x => x.id===t.id? t : x)) })
     socket.on('turn', ({ seat, deadline }) => console.log('turn', seat, deadline))
@@ -177,11 +179,17 @@ export default function Home() {
     socket.on('handStart', (msg:any) => console.log('handStart', msg))
     socket.on('street', (msg:any) => console.log('street', msg))
     socket.on('handEnd', (msg:any) => console.log('handEnd', msg))
+
+    // Global fallback: some integrations may call window.openCreateRoomModal()
+    ;(window as any).openCreateRoomModal = () => {
+      socket.emit('createTable', 2, (res:any)=>{ if(res?.ok) setTable(res.table) })
+    }
     return () => { socket.off() }
   }, [])
 
-  const createTable = () => socket.emit('createTable', 2, (res:any)=>{ setTable(res.table) })
-  const joinTable = (id:number) => socket.emit('joinTable', id, address, (res:any)=>{ console.log(res); setSeat(res.seat) })
+  const [seatCount, setSeatCount] = useState<number>(6)
+  const createTable = () => socket.emit('createTable', seatCount, (res:any)=>{ if(res?.ok) setTable(res.table) })
+  const joinTable = (id:number) => socket.emit('joinTable', id, address, (res:any)=>{ console.log(res); if(res?.ok){ setSeat(res.seat) } else if (res?.error==='already seated') { socket.emit('reconnectSeat', id, address, (r:any)=> r?.ok && setSeat(r.seat)) } })
   const send = (kind: "check"|"bet"|"call"|"raise"|"fold", amount?: number) =>
     socket.emit('action', table.id, seat, { kind, amount }, (res:any)=> console.log(res))
 
@@ -210,9 +218,15 @@ export default function Home() {
         <>
           <div className="mb-2 text-sm text-gray-600">Adres: {address}</div>
           <section className="border rounded p-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-3">
               <h2 className="font-semibold">Lobby</h2>
-              <button className="px-3 py-1 rounded bg-gray-200" onClick={createTable}>Create 2-seat</button>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Seats</label>
+                <select value={seatCount} onChange={e=>setSeatCount(Number(e.target.value))} className="border rounded px-2 py-1">
+                  {[2,3,4,5,6,7,8,9].map(n=> <option key={n} value={n}>{n}</option>)}
+                </select>
+                <button className="px-3 py-1 rounded bg-gray-200" onClick={createTable}>Create</button>
+              </div>
             </div>
             <ul className="space-y-2">
               {tables.map((t:any) => (
