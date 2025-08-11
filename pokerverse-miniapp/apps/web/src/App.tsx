@@ -17,6 +17,7 @@ import Toast from './ui/Toast'
 import Hud from '@miniapp/Hud'
 import CashOutModal from '@miniapp/CashOutModal'
 import { connectWC, getAccount } from '@miniapp/web3'
+import { getChipBalance } from '@miniapp/web3'
 
 function useWindowSize() {
   const [s, set] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -47,15 +48,29 @@ export default function App() {
     let alive = true as boolean
     let t: any, hb: any
     const url = (() => {
-      const envUrl = (import.meta as any).env.VITE_WS_URL as string | undefined
+      const envUrl = ((import.meta as any).env.VITE_WS_URL as string | undefined)?.trim()
       const forceLocal = ((import.meta as any).env.VITE_FORCE_LOCAL_WS ?? '').toString().toLowerCase()
       const force = forceLocal === '1' || forceLocal === 'true'
       const host = window.location.hostname
       const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1'
-      // Lokal geliştirmede doğrudan yerel WS'e bağlan
-      return (force || isLocal) ? 'ws://127.0.0.1:3011' : envUrl
+      if (force || isLocal) return 'ws://127.0.0.1:3011'
+      if (!envUrl) return null
+      let v = envUrl
+      if (/^https?:\/\//i.test(v)) {
+        try { const u = new URL(v); v = 'wss://' + u.host } catch { v = null as any }
+      } else if (!/^wss?:\/\//i.test(v)) {
+        v = 'wss://' + v
+      }
+      try {
+        if (v) {
+          const u = new URL(v)
+          if (!u.host) return null
+          return u.toString()
+        }
+      } catch { return null }
+      return null
     })()
-    if(!url) return
+    if(!url) { console.warn('WS URL invalid; skipping connect'); return }
     function connect(){
       const ws = new WebSocket(url!)
       ;(window as any).pvSend = (payload:any)=> ws.readyState===1 && ws.send(JSON.stringify({type:'ACTION', payload}))
@@ -77,7 +92,21 @@ export default function App() {
   const [cashOpen,setCashOpen]=useState(false)
   const [toast, setToast] = useState('')
   const [addr, setAddr] = useState<string | null>(null)
+  const [chipBal, setChipBal] = useState<number>(0)
   useEffect(()=>{ setAddr(getAccount() || null) }, [])
+  useEffect(()=>{
+    let cancelled = false
+    async function load(){
+      try {
+        // CashOutModal ile aynı tableId kullan
+        const tid = 0n
+        const balStr = await getChipBalance(tid)
+        if (!cancelled) setChipBal(parseFloat(balStr || '0'))
+      } catch { if (!cancelled) setChipBal(0) }
+    }
+    if (addr) load(); else setChipBal(0)
+    return ()=>{ cancelled = true }
+  }, [addr])
 
   const bb=100, toCall=120, lastAgg=200, stack=5000
   const pot=state.potAmount
@@ -106,7 +135,7 @@ export default function App() {
                 style={{ background: 'var(--tg-btn)', color: 'var(--tg-btn-text)', padding:'8px 12px', borderRadius:12 }}
               >Connect</button>
             )}
-            {addr && (
+            {addr && chipBal > 0 && (
               <button
                 onClick={()=> setCashOpen(true)}
                 className="btn-tap"

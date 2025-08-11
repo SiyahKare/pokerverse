@@ -17,13 +17,17 @@ export default function BetPanel(props: BetPanelProps) {
   const [val, setVal] = useState<number>(initial ?? Math.max(min, call ?? min))
   useEffect(()=> setVal(initial ?? Math.max(min, call ?? min)), [open])
 
-  const presets = useMemo(() => ([
-    { key: '1_3', label: '1/3 Pot', value: Math.max(min, Math.round((pot/3)/step)*step) },
-    { key: '1_2', label: '1/2 Pot', value: Math.max(min, Math.round((pot/2)/step)*step) },
-    { key: '2_3', label: '2/3 Pot', value: Math.max(min, Math.round((pot*2/3)/step)*step) },
-    { key: 'pot', label: 'Pot', value: Math.max(min, Math.round((pot)/step)*step) },
-    { key: 'allin', label: 'All-In', value: max },
-  ] as const), [min,max,step,pot])
+  const presets = useMemo(() => {
+    const toCall = typeof call === 'number' ? call : 0
+    const clamp = (v:number)=> Math.min(max, Math.max(min, Math.round(v/step)*step))
+    return ([
+      { key: '1_3', label: '1/3 Pot', value: clamp((pot/3) + toCall) },
+      { key: '1_2', label: '1/2 Pot', value: clamp((pot/2) + toCall) },
+      { key: '2_3', label: '2/3 Pot', value: clamp(((pot*2)/3) + toCall) },
+      { key: 'pot', label: 'Pot', value: clamp(pot + toCall) },
+      { key: 'allin', label: 'All-In', value: max },
+    ] as const)
+  }, [min,max,step,pot,call])
 
   useEffect(()=> { onChange?.(val) }, [val])
   if (!open) return null

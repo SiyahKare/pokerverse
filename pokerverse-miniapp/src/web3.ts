@@ -30,6 +30,27 @@ export async function connectWC() {
     rpcMap: { [CHAIN_ID]: RPC_URL },
   })
   await provider.enable()
+  // Ensure wallet is on the expected chain (e.g., Sepolia 11155111)
+  try {
+    const hexId = '0x' + CHAIN_ID.toString(16)
+    // Try switch first
+    await (provider as any).request?.({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexId }] })
+  } catch (e: any) {
+    // If unrecognized chain, try add then switch
+    if (e && (e.code === 4902 || String(e.message||'').includes('Unrecognized'))) {
+      try {
+        await (provider as any).request?.({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0x' + CHAIN_ID.toString(16),
+            chainName: CHAIN_ID === 11155111 ? 'Sepolia' : (CHAIN_ID === 31337 ? 'Hardhat' : `Chain ${CHAIN_ID}`),
+            rpcUrls: [RPC_URL],
+            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+          }],
+        })
+      } catch {}
+    }
+  }
   walletClient = createWalletClient({ chain, transport: custom(provider as any) })
   const [addr] = await walletClient.getAddresses()
   account = addr
