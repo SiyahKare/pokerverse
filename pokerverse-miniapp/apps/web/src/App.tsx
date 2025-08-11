@@ -15,6 +15,7 @@ import ActionBar from './ui/ActionBar'
 import BetPanel from './ui/BetPanel'
 import Toast from './ui/Toast'
 import Hud from '@miniapp/Hud'
+import TurnOverlay from './pixi/layers/TurnOverlay'
 import CashOutModal from '@miniapp/CashOutModal'
 import { connectWC, getAccount } from '@miniapp/web3'
 import { getChipBalance } from '@miniapp/web3'
@@ -122,6 +123,7 @@ export default function App() {
           <Application width={w} height={h} resolution={window.devicePixelRatio} antialias backgroundAlpha={0}>
             <TableCanvas width={w} height={h} state={state} />
           </Application>
+          {state && (state as any).turnDeadline && <TurnOverlay deadline={(state as any).turnDeadline as any} />}
 
           {/* Overlay HUD */}
           <Hud />

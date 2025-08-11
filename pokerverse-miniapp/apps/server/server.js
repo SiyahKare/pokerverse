@@ -1,5 +1,6 @@
 const { WebSocketServer } = require('ws');
 const { nanoid } = require('nanoid');
+const { Hand } = require('pokersolver');
 
 const PORT = process.env.PORT || 3011;
 const wss = new WebSocketServer({ port: PORT });
@@ -24,14 +25,18 @@ const BIG_BLIND = 100;
 let currentBet = 0; // o streetteki en yüksek bet
 let lastRaiseSize = BIG_BLIND; // min-raise takibi
 let turnTimer = null; // per-turn timer handle
+let raiseCountInStreet = 0; // cap için raise sayacı (bet dahil)
 
 let table = {
   maxSeats: 9,
-  seats: Array.from({ length: 9 }, (_, i) => ({ seat: i, name: `Seat ${i + 1}` , stack: 2000, isTurn: false, isSitting: false, inHand: false })),
+  seats: Array.from({ length: 9 }, (_, i) => ({ seat: i, name: `Seat ${i + 1}` , stack: 2000, isTurn: false, isSitting: false, inHand: false, invested: 0 })),
   potAmount: 0,
   community: [],
   lastAction: null,
   street: 'prehand', // prehand|preflop|flop|turn|river|showdown
+  sidePots: [],
+  turnDeadline: null,
+  button: -1,
 };
 
 function seatedPlayers(){ return table.seats.filter(s=>s && s.isSitting) }
@@ -56,12 +61,14 @@ function dealNewHand(){
   table.community = [];
   table.lastAction = null;
   table.street = 'preflop';
+  table.sidePots = [];
   // herkese 2 kart
   table.seats.forEach(s=>{
     if (!s || !s.isSitting) { if (s) { s.inHand=false; s.hole=undefined } return }
     s.inHand = true;
     s.hasFolded = false;
     s.bet = 0;
+    s.invested = 0;
     s.hole = [deck.pop(), deck.pop()];
   })
   actionCount = 0;
@@ -72,20 +79,22 @@ function dealNewHand(){
     const s = table.seats[idx];
     if (s && s.isSitting) { dealerIndex = idx; break }
   }
+  table.button = dealerIndex;
   // blinds post
   currentBet = 0;
   lastRaiseSize = BIG_BLIND;
+  raiseCountInStreet = 0;
   const order = [];
   for (let k=1;k<=N;k++) order.push((dealerIndex + k) % N);
   const sbIdx = order.find(i=> table.seats[i] && table.seats[i].isSitting);
   const bbIdx = order.slice(order.indexOf(sbIdx)+1).find(i=> table.seats[i] && table.seats[i].isSitting);
   if (typeof sbIdx === 'number') {
     const sb = table.seats[sbIdx]; const amt = Math.min(SMALL_BLIND, sb.stack||0);
-    sb.stack = Math.max(0, (sb.stack||0) - amt); sb.bet = amt; table.potAmount += amt;
+    sb.stack = Math.max(0, (sb.stack||0) - amt); sb.bet = amt; sb.invested = (sb.invested||0) + amt; table.potAmount += amt;
   }
   if (typeof bbIdx === 'number') {
     const bb = table.seats[bbIdx]; const amt = Math.min(BIG_BLIND, bb.stack||0);
-    bb.stack = Math.max(0, (bb.stack||0) - amt); bb.bet = amt; table.potAmount += amt; currentBet = amt;
+    bb.stack = Math.max(0, (bb.stack||0) - amt); bb.bet = amt; bb.invested = (bb.invested||0) + amt; table.potAmount += amt; currentBet = amt;
   }
   // konuşma: BB'nin solundan başla
   const startOrder = order.slice(order.indexOf(bbIdx)+1).concat(order.slice(0, order.indexOf(bbIdx)+1));
@@ -108,26 +117,82 @@ function advanceStreetIfNeeded(){
     actionCount = 0;
     // street reset
     table.seats.forEach(s=> { if (s) s.bet = 0 })
-    currentBet = 0; lastRaiseSize = BIG_BLIND;
+    currentBet = 0; lastRaiseSize = BIG_BLIND; raiseCountInStreet = 0;
     if (table.community.length === 0) {
       // flop
       table.community.push(deck.pop(), deck.pop(), deck.pop());
       table.street = 'flop';
+      // postflop ilk konuşan: button'un solu (SB) ve aktif ilk oyuncu
+      const N = table.seats.length;
+      for (let k=1;k<=N;k++){
+        const i = (dealerIndex + k) % N;
+        const s = table.seats[i];
+        if (s && s.isSitting && s.inHand && !s.hasFolded) { currentSeat = i; break }
+      }
+      markTurn(currentSeat); scheduleTurnTimer();
     } else if (table.community.length === 3) {
       table.community.push(deck.pop());
       table.street = 'turn';
+      const N = table.seats.length; for (let k=1;k<=N;k++){ const i=(dealerIndex+k)%N; const s=table.seats[i]; if (s&&s.isSitting&&s.inHand&&!s.hasFolded){ currentSeat=i; break } }
+      markTurn(currentSeat); scheduleTurnTimer();
     } else if (table.community.length === 4) {
       table.community.push(deck.pop());
       table.street = 'river';
+      const N = table.seats.length; for (let k=1;k<=N;k++){ const i=(dealerIndex+k)%N; const s=table.seats[i]; if (s&&s.isSitting&&s.inHand&&!s.hasFolded){ currentSeat=i; break } }
+      markTurn(currentSeat); scheduleTurnTimer();
     } else if (table.community.length === 5) {
-      // showdown: rastgele kazanan
-      const alive = activePlayers();
-      const winner = alive[Math.floor(Math.random()*alive.length)];
-      if (winner) winner.stack = (winner.stack || 0) + table.potAmount;
+      // showdown: en iyi eli belirle ve potu dağıt (basit: side-pot yok, eşitlikte böl)
+      const alive = activePlayers().filter(p=> !p.hasFolded);
+      const scored = alive.map(p => {
+        const cards = [ ...(p.hole||[]), ...table.community ];
+        try {
+          const h = Hand.solve(cards.map(c=> c.toUpperCase()));
+          return { seat: p.seat, player: p, score: h.rank, handType: h.name, hand: h };
+        } catch {
+          return { seat: p.seat, player: p, score: -1, handType: 'invalid' };
+        }
+      });
+      // Side-pot inşası
+      const pots = buildSidePots();
+      for (const pot of pots) {
+        const elig = scored.filter(s=> pot.eligible.has(s.seat));
+        if (elig.length === 0 || pot.size <= 0) continue;
+        const winners = Hand.winners(elig.map(e=> e.hand)).map(w=> elig.find(e=> e.hand === w)).filter(Boolean);
+        const share = Math.floor(pot.size / winners.length);
+        let rem = pot.size - share * winners.length;
+        for (const w of winners) { w.player.stack = (w.player.stack||0) + share + (rem>0?1:0); if (rem>0) rem--; }
+      }
       dealNewHand();
     }
     broadcast({ type: 'TABLE_STATE', payload: table });
   }
+}
+
+function buildSidePots(){
+  // Invested bazlı katmanlama
+  const players = table.seats.filter(p=> p && p.isSitting && p.inHand && !p.hasFolded);
+  const invested = new Map();
+  for (const p of players) invested.set(p.seat, p.invested||0);
+  const aliveSet = new Set(players.map(p=> p.seat));
+  const pots = [];
+  while (aliveSet.size > 0) {
+    let min = Infinity; for (const seat of aliveSet) { const v = invested.get(seat)||0; if (v < min) min = v; }
+    if (!isFinite(min) || min <= 0) break;
+    // pota dahil olabilecekler: aliveSet üyeleri
+    const elig = Array.from(aliveSet);
+    const layerAmt = min * elig.length;
+    pots.push({ size: layerAmt, eligible: new Set(elig) });
+    // düş
+    for (const seat of elig) {
+      invested.set(seat, (invested.get(seat)||0) - min);
+      if ((invested.get(seat)||0) === 0) { /* kalabilir, sonraki layer’a da dahil olur eğer daha yüksek all-in yoksa */ }
+    }
+    // Eğer bazı oyuncuların invested'i 0 ve başka oyuncularda >0 varsa, sonraki layer sadece >0 olanlarla devam eder
+    const stillAlive = new Set(Array.from(aliveSet).filter(seat => (invested.get(seat)||0) > 0));
+    if (stillAlive.size === 0) break; else aliveSet.clear(), stillAlive.forEach(s=> aliveSet.add(s));
+  }
+  table.sidePots = pots.map(p=> ({ size: p.size, eligible: Array.from(p.eligible) }));
+  return pots;
 }
 
 function nextSeat(){
@@ -143,6 +208,9 @@ function nextSeat(){
 function scheduleTurnTimer(){
   if (turnTimer) { clearTimeout(turnTimer); turnTimer = null }
   // 12s tur süresi
+  const deadline = Date.now() + 12000;
+  table.turnDeadline = deadline;
+  broadcast({ type: 'TABLE_STATE', payload: table });
   turnTimer = setTimeout(()=> {
     const actor = table.seats[currentSeat];
     if (!actor || !actor.isTurn) return;
@@ -196,6 +264,7 @@ wss.on('connection', (ws) => {
           const amt = Math.min(actor.stack||0, toCall)
           actor.stack = Math.max(0, (actor.stack||0) - amt)
           actor.bet = (actor.bet||0) + amt
+          actor.invested = (actor.invested||0) + amt
           table.potAmount += amt
         } else if (kind === 'bet') {
           if (currentBet !== 0) return reject('Bet not allowed, there is already a bet', { currentBet })
@@ -204,11 +273,14 @@ wss.on('connection', (ws) => {
           const delta = useAmt
           actor.stack = Math.max(0, (actor.stack||0) - delta)
           actor.bet = (actor.bet||0) + delta
+          actor.invested = (actor.invested||0) + delta
           table.potAmount += delta
           currentBet = actor.bet||0
           lastRaiseSize = currentBet
+          raiseCountInStreet += 1
         } else if (kind === 'raise') {
           if (currentBet === 0) return reject('No bet to raise')
+          if (raiseCountInStreet >= 4) return reject('Betting capped this street')
           const targetBet = amount
           const minRaiseTo = currentBet + Math.max(lastRaiseSize, BIG_BLIND)
           if (targetBet < minRaiseTo) return reject('Min raise not met', { minRaiseTo })
@@ -216,13 +288,16 @@ wss.on('connection', (ws) => {
           const pay = Math.min(need, actor.stack||0)
           actor.stack = Math.max(0, (actor.stack||0) - pay)
           actor.bet = (actor.bet||0) + pay
+          actor.invested = (actor.invested||0) + pay
           table.potAmount += pay
           lastRaiseSize = targetBet - currentBet
           currentBet = targetBet
+          raiseCountInStreet += 1
         } else if (kind === 'allin') {
           const pay = actor.stack||0
           actor.stack = 0
           actor.bet = (actor.bet||0) + pay
+          actor.invested = (actor.invested||0) + pay
           table.potAmount += pay
           if (currentBet === 0 && pay > 0) { currentBet = actor.bet||0; lastRaiseSize = currentBet }
         }
