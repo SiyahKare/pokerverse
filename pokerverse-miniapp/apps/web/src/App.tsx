@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Application, extend } from '@pixi/react'
-import { Container as PixiContainer, Sprite as PixiSprite, Graphics as PixiGraphics } from 'pixi.js'
-import { Text as PixiText } from '@pixi/text'
+import { Container as PixiContainer, Sprite as PixiSprite, Graphics as PixiGraphics, Text as PixiText } from 'pixi.js'
 
 // Pixi bileşenlerini @pixi/react kataloğuna kaydet
 extend({ Container: PixiContainer, Sprite: PixiSprite, Text: PixiText as any, Graphics: PixiGraphics })
