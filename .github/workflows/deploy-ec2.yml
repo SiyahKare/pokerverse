@@ -100,7 +100,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Configure SSH
+      - name: Configure SSH (optional)
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
@@ -110,6 +110,8 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
           source: infra/docker-compose.prod.yml
           target: /opt/pokerverse
 
@@ -118,6 +120,8 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
           script: |
             sudo mkdir -p /opt/pokerverse && sudo chown -R $USER:$USER /opt/pokerverse
             cat > /opt/pokerverse/.env << 'EOF'
@@ -141,6 +145,8 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
           script: |
             cd /opt/pokerverse
             docker network ls | grep traefik_proxy || docker network create traefik_proxy
