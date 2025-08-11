@@ -102,6 +102,17 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Prepare target dir
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            sudo mkdir -p /opt/pokerverse
+            sudo chown -R $USER:$USER /opt/pokerverse
       - name: Configure SSH (optional)
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -116,6 +127,7 @@ jobs:
           port: ${{ secrets.EC2_PORT || 22 }}
           source: ./infra/docker-compose.prod.yml
           target: /opt/pokerverse
+          overwrite: true
 
       - name: Render .env on EC2
         uses: appleboy/ssh-action@v1.2.0
