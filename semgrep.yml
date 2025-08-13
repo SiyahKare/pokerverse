@@ -1,0 +1,14 @@
+rules:
+  - id: pixi-filter-forbidden
+    message: "Pixi filter/shader yasak. 2D modda sprite/bitmap kullan."
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: |
+      PIXI.filters.
+  - id: bigint-cast-to-number
+    message: "BigInt → Number cast tespit. Finansal değerlerde kaçının."
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: |
+      Number($X)
+

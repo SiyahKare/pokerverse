@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "pokerverse-miniapp"
+    "pokerverse-miniapp",
+    "pokerverse-miniapp/apps/*"
   ],
   "scripts": {
     "contracts:install": "npm -w packages/contracts i",
@@ -14,7 +15,8 @@
     "backend:test": "npm -w packages/backend run test",
     "build:core": "npm -w packages/core-game run build && npm -w packages/core-ws run build",
     "dev:web": "npm -w packages/frontend run dev",
-    "dev:mini": "npm -w pokerverse-miniapp run dev"
+    "dev:mini": "npm -w web run dev",
+    "build:mini": "npm -w web run build && npm -w web run analyze:size"
   }
 }
 

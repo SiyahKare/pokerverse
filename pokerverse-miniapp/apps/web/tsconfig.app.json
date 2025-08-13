@@ -24,7 +24,9 @@
     "noUncheckedSideEffectImports": true,
 
     "paths": {
-      "@miniapp/*": ["../../src/*"]
+      "@miniapp/*": ["../../src/*"],
+      "@core-game/*": ["../../../packages/core-game/src/*"],
+      "@core-ws/*": ["../../../packages/core-ws/src/*"]
     }
   },
   "include": ["src", "../../src"]

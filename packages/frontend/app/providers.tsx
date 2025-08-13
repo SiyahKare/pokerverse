@@ -1,19 +1,4 @@
 "use client";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from "@/components/ui/toaster"
-import { ReactNode, useState } from 'react'
-
-export default function Providers({ children }: { children: ReactNode }) {
-  const [qc] = useState(()=> new QueryClient())
-  return (
-    <QueryClientProvider client={qc}>
-      {children}
-      <Toaster />
-    </QueryClientProvider>
-  )
-}
-
-'use client';
 import { WagmiProvider } from 'wagmi'
 import { wagmiConfig } from '../lib/wagmi'
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'

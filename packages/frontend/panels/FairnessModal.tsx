@@ -1,12 +1,11 @@
 "use client";
 import { useMemo } from 'react'
-import { deterministicShuffle } from '@pokerverse/core-game'
+import { deckHash } from '@core-game/index'
 
 export default function FairnessModal({ open, onClose, handId, commit, seed }:{ open:boolean; onClose:()=>void; handId?:number; commit?:string; seed?:string }){
   const verified = useMemo(()=>{
     if (!seed || !commit) return 'pending'
-    // basit hash karşılaştırma: seed->shuffle->hash (core-game deckHash ileride ekli)
-    return seed ? 'ok' : 'mismatch'
+    return deckHash(seed) === commit ? 'ok' : 'mismatch'
   }, [seed, commit]) as 'pending'|'ok'|'mismatch'
   if (!open) return null
   return (

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.js",
   "exports": "./dist/index.js",
+  "sideEffects": false,
   "scripts": { "build": "tsc -p ." },
   "dependencies": { "socket.io-client": "^4.8.1" },
   "devDependencies": { "typescript": "^5.4.0" }

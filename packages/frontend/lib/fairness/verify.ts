@@ -1,8 +1,8 @@
-import { deterministicShuffle } from '@pokerverse/core-game'
+import { deterministicShuffle, deckHash } from '@core-game/index'
 
 export function verifyDeck(seed: string, expectHash: string): 'ok'|'mismatch' {
-  // TODO: when deckHash exposed from core-game, compare real hash
-  return seed ? 'ok' : 'mismatch'
+  const h = deckHash(seed)
+  return h === expectHash ? 'ok' : 'mismatch'
 }
 
 

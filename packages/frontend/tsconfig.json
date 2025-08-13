@@ -10,7 +10,11 @@
     "jsx": "preserve",
     "strict": true,
     "baseUrl": ".",
-    "paths": {},
+    "paths": {
+      "@/*": ["./*"],
+      "@core-game/*": ["../core-game/src/*"],
+      "@core-ws/*": ["../core-ws/src/*"]
+    },
     "allowJs": true,
     "skipLibCheck": true,
     "noEmit": true,

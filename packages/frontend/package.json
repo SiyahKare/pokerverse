@@ -5,19 +5,20 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start -p 3000",
+    "test": "vitest run \"tests/unit/**/*.test.ts\"",
+    "test:e2e": "NEXT_PUBLIC_E2E=1 npm run build && NEXT_PUBLIC_E2E=1 playwright test"
   },
   "dependencies": {
+    "@pixi/graphics-smooth": "^1.1.0",
     "@pixi/react": "^7.1.2",
+    "@radix-ui/react-slider": "^1.1.2",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.85.0",
     "autoprefixer": "^10.4.19",
     "framer-motion": "^11.18.2",
     "gsap": "3.13.0",
     "lucide-react": "^0.441.0",
-    "@radix-ui/react-slider": "^1.1.2",
-    "@pixi/graphics-smooth": "^1.1.0",
-    "zod": "^3.23.8",
     "next": "14.2.5",
     "pixi.js": "7.4.3",
     "postcss": "^8.4.38",
@@ -27,12 +28,17 @@
     "tailwindcss": "^3.4.7",
     "viem": "^2.33.3",
     "wagmi": "^2.16.2",
+    "zod": "^3.23.8",
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@testing-library/dom": "^10.4.1",
+    "@types/node": "^24.2.1",
     "@types/react": "18.3.5",
     "@types/react-dom": "18.3.0",
     "pino-pretty": "^10.3.1",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.9"
   }
 }
