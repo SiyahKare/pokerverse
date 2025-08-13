@@ -1,6 +1,7 @@
 // Minimal Texas Hold'em betting FSM (no evaluator/side-pot yet)
 import { Server } from "socket.io";
 import { evalHand } from 'poker-evaluator';
+import { createHash } from 'crypto';
 
 export type Addr = `0x${string}`;
 export type ActionKind = "check" | "bet" | "call" | "raise" | "fold";
@@ -25,6 +26,7 @@ export interface Table {
   bbPos: number; // seat index of BB
   players: Player[];
   started: boolean;
+  handId: number;
 
   // Hand state
   street: Street;
@@ -48,15 +50,40 @@ export interface Action {
 
 export const PER_TURN_MS = 15_000;
 
-// Cards & deck helpers
+// Cards & deck helpers (Provably-Fair deterministic shuffle)
 type Suit = 'c'|'d'|'h'|'s';
 const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'] as const;
 const SUITS: Suit[] = ['c','d','h','s'];
-function makeDeck(): string[] {
-  const d: string[] = [];
-  for (const r of RANKS) for (const s of SUITS) d.push(r+s);
-  for (let i=d.length-1;i>0;i--) { const j = Math.floor(Math.random()*(i+1)); [d[i],d[j]] = [d[j],d[i]]; }
-  return d;
+function baseDeck(): string[] { const d: string[] = []; for (const r of RANKS) for (const s of SUITS) d.push(r+s); return d; }
+
+function sha512(bytes: Uint8Array): Buffer { return createHash('sha512').update(bytes).digest(); }
+
+function* prng(seed: Uint8Array): Generator<number, void, unknown> {
+  // Deterministic byte stream via SHA-512 chaining
+  let state = Buffer.from(seed);
+  let pool = Buffer.alloc(0);
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (pool.length < 4) { state = sha512(state); pool = Buffer.concat([pool, state]); }
+    const val = pool.readUInt32BE(0); pool = pool.subarray(4);
+    yield val >>> 0;
+  }
+}
+
+export function shuffleDeckDeterministic(seedHex: string): string[] {
+  const seed = Buffer.from(seedHex.replace(/^0x/, ''), 'hex');
+  const deck = baseDeck();
+  const g = prng(seed);
+  for (let i = deck.length - 1; i > 0; i--) {
+    const range = i + 1;
+    const MAX = 0x1_0000_0000; // 2^32
+    const limit = Math.floor(MAX / range) * range; // rejection to avoid modulo bias
+    let x = Number(g.next().value);
+    while (x >= limit) x = Number(g.next().value);
+    const j = x % range;
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
 }
 function deal(deck: string[], n: number): string[] { return deck.splice(0, n); }
 
@@ -127,12 +154,13 @@ function startTurn(io: Server, t: Table) {
   io.to(`table:${t.id}`).emit("turn", { seat: t.turnSeat, deadline: t.turnDeadline });
 }
 
-function startHand(io: Server, t: Table) {
+export function startHand(io: Server, t: Table, seedHex: string): number {
   t.started = true;
   t.street = "preflop";
   t.pot = 0;
   t.currentBet = t.bigBlind;
   t.minRaise = t.bigBlind;
+  t.handId = (t.handId || 0) + 1;
 
   // all players enter the hand
   t.players.forEach(p => { p.inHand = true; p.committed = 0; p.actedThisRound = false; });
@@ -150,16 +178,17 @@ function startHand(io: Server, t: Table) {
   t.lastAggressorSeat = t.bbPos;
 
   io.to(`table:${t.id}`).emit("handStart", {
-    tableId: t.id, sbPos: t.sbPos, bbPos: t.bbPos, street: t.street,
+    tableId: t.id, handId: t.handId, sbPos: t.sbPos, bbPos: t.bbPos, street: t.street,
     pot: t.pot, currentBet: t.currentBet
   });
   // init deck & deal holes
-  t.deck = makeDeck();
+  t.deck = shuffleDeckDeterministic(seedHex);
   t.board = [];
   t.holes = {} as Record<number, string[]>;
   for (const p of t.players) { t.holes[p.seat] = deal(t.deck, 2); }
   io.to(`table:${t.id}`).emit("deal", { holes: Object.fromEntries(t.players.map(p=>[p.seat, t.holes[p.seat]])) });
   startTurn(io, t);
+  return t.handId;
 }
 
 function endHandWithWinner(io: Server, t: Table, winnerSeat: number) {
@@ -175,8 +204,6 @@ function endHandWithWinner(io: Server, t: Table, winnerSeat: number) {
   // rotate blinds
   t.sbPos = (t.sbPos + 1) % t.players.length;
   t.bbPos = (t.bbPos + 1) % t.players.length;
-  // auto start next hand after small delay
-  setTimeout(() => startHand(io, t), 1500);
 }
 
 function onPostAction(io: Server, t: Table) {
@@ -361,7 +388,7 @@ export function publicTable(t: Table) {
 export function initTable(id: number, seats = 2, sb = 5, bb = 10, buyIn = 1000): Table {
   return {
     id, seats, smallBlind: sb, bigBlind: bb, sbPos: 0, bbPos: 1,
-    players: [], started: false, street: "preflop", pot: 0,
+    players: [], started: false, handId: 0, street: "preflop", pot: 0,
     currentBet: 0, minRaise: bb, turnSeat: 0, lastAggressorSeat: null,
     deck: [], board: [], holes: {} as Record<number, string[]>
   };
@@ -380,8 +407,8 @@ export function sitDown(t: Table, socketId: string, addr: Addr) {
   return seat;
 }
 
-export function maybeStart(io: Server, t: Table) {
-  if (!t.started && t.players.length === t.seats) startHand(io, t);
+export function maybeStartWithSeed(io: Server, t: Table, seedHex: string) {
+  if (!t.started && t.players.length === t.seats) startHand(io, t, seedHex);
 }
 
 

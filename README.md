@@ -142,6 +142,24 @@ Oturum bakiyesi (ChipBank) → Cash‑Out (%LP kesinti) → Oyuncu & POL
 ```
 
 ## 🩺 Troubleshooting
+## 🔐 Provably-Fair (Commit–Reveal RNG)
+
+Poker dağıtımı deterministiktir. Her el başlangıcında sunucu 32 bayt `seed` üretir ve `commit = keccak256(seed)` değerini yayınlar. El bitiminde `seed` açıklanır. İstemci, aşağıdaki adımlarla dağıtımı doğrulayabilir:
+
+1) `seedHex` ile `shuffleDeck(seedHex)` (engine’deki Fisher–Yates + SHA-512 zinciri) çalıştır.
+2) Üretilen 52 kartlık permütasyondan preflop/board dağıtımı tekrar kurulabilir.
+3) Log doğrulama: structured log
+```
+{ "tableId": <id>, "handId": <hid>, "commit": "0x...", "seedHex": "0x...", "deckPermutationHash": "0x..." }
+```
+
+Örnek doğrulama komutu (Node REPL):
+```
+// seed ve commit
+// commit == keccak256(seed) kontrolü
+// shuffleDeckDeterministic(seed) ile ilk 5 kart/flop karşılaştırması
+```
+
 
 - Port çakışması (EADDRINUSE): eski süreçleri kapatın
   - `pkill -f "hardhat node"; pkill -f "tsx watch packages/backend/src/server.ts"; pkill -f "next dev"`

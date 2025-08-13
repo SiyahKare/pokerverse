@@ -5,8 +5,9 @@ import { Server as IOServer } from "socket.io";
 import { ethers } from "ethers";
 import BetABI from "./abis/Bet.json" assert { type: "json" };
 import {
-  initTable, sitDown, maybeStart, handleAction, publicTable, setHooks, type Table, type Action
+  initTable, sitDown, handleAction, publicTable, setHooks, type Table, type Action, startHand, maybeStartWithSeed
 } from "./engine/poker";
+import { randomBytes, createHash } from "crypto";
 import ChipBankABI from "./abis/ChipBank.json" assert { type: "json" };
 
 const PORT = Number(process.env.PORT || 3001);
@@ -85,7 +86,19 @@ io.on("connection", (socket) => {
       const seat = sitDown(t, socket.id, addr as any);
       socket.join(`table:${tableId}`);
       io.to(`table:${tableId}`).emit("tableState", publicTable(t));
-      maybeStart(io, t);
+      // Provably-fair: seed -> commit -> startHand
+      if (!t.started && t.players.length === t.seats) {
+        const seed = randomBytes(32);
+        const commit = createHash('sha256').update(seed).digest('hex');
+        const seedHex = '0x' + seed.toString('hex');
+        const commitHex = '0x' + commit;
+        const deckPermutation = createHash('sha256').update(Buffer.from(seed)).digest('hex');
+        const handId = startHand(io, t, seedHex);
+        console.log(JSON.stringify({ level: "info", msg: "commit_published", tableId, handId, commit: commitHex }));
+        console.log(JSON.stringify({ level: "info", msg: "seed_revealed", tableId, handId, seedHex, deckPermutationHash: '0x'+deckPermutation }));
+        io.to(`table:${tableId}`).emit("rng:commit", { tableId, handId, commit: commitHex });
+        io.to(`table:${tableId}`).emit("rng:reveal", { tableId, handId, seed: seedHex });
+      }
       cb && cb({ ok: true, seat });
     } catch (e:any) { cb && cb({ ok:false, error: e.message }); }
   });
