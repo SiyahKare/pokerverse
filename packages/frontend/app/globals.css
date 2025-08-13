@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #0B0B0F;
+  --surface: #121217;
+  --surface-2: #191922;
+  --text: #EAEAF0;
+  --muted: #A5A7B3;
+  --gold: #C6A15B;
+  --success: #3BB273;
+  --warning: #E0B054;
+  --danger: #D24B4B;
+  --radius: 16px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); }
+
+.card-premium {
+  background: linear-gradient(180deg, rgba(25,25,34,0.85), rgba(18,18,23,0.85));
+  border-radius: var(--radius);
+  border: 0.5px solid rgba(198,161,91,0.35);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.gold {
+  color: var(--gold);
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html, body { height: 100%; }
 
 

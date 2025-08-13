@@ -9,7 +9,14 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "resolveJsonModule": true
-  }
+  },
+  "include": ["src"],
+  "exclude": [
+    "test",
+    "**/*.spec.ts",
+    "node_modules",
+    "dist"
+  ]
 }
 
 
