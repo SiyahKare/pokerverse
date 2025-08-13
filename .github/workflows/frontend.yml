@@ -1,0 +1,77 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+    paths:
+      - 'packages/frontend/**'
+      - 'packages/core-game/**'
+      - 'packages/core-ws/**'
+      - 'semgrep.yml'
+      - '.github/workflows/frontend.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/frontend/**'
+      - 'packages/core-game/**'
+      - 'packages/core-ws/**'
+      - 'semgrep.yml'
+      - '.github/workflows/frontend.yml'
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps (monorepo)
+        run: npm ci
+
+      - name: Build core packages
+        run: npm run build:core
+
+      - name: Build frontend
+        run: npm -w packages/frontend run build
+
+      - name: Run unit tests (Vitest)
+        run: npm -w packages/frontend run test
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: E2E (Playwright, prod build)
+        env:
+          NEXT_PUBLIC_E2E: '1'
+        run: |
+          npm -w packages/frontend run build
+          npx playwright test
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: packages/frontend/test-results
+          if-no-files-found: ignore
+
+      - name: Semgrep (guards)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: semgrep.yml
+          generateSarif: "1"
+          auditOn: "pull_request"
+          publishToken: ""
+        env:
+          SEMGREP_RULES: semgrep.yml
+
+

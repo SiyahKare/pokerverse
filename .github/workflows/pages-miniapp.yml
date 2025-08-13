@@ -1,0 +1,68 @@
+name: Pages (MiniApp)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "pokerverse-miniapp/apps/web/**"
+      - ".github/workflows/pages-miniapp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-miniapp"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pokerverse-miniapp/apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            pokerverse-miniapp/apps/web/package-lock.json
+            package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_ATLAS_CDN: https://cdn.pokerverse.siyahkare.com/atlas/latest
+        run: npm run build
+
+      - name: Write CNAME
+        run: |
+          echo "miniapp.pokerverse.siyahkare.com" > dist/CNAME
+          echo "nojekyll" > dist/.nojekyll
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pokerverse-miniapp/apps/web/dist
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+

@@ -5,6 +5,11 @@ import path from 'node:path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    target: 'es2020',
+    sourcemap: false,
+    reportCompressedSize: true,
+  },
   // Expose both VITE_* and WC_* vars to the client
   envPrefix: ['VITE_', 'WC_'],
   // Monorepo kökünde .env varsa yükleyebilmek için
