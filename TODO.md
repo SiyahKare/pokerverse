@@ -11,8 +11,10 @@ Güncel kısa liste; geniş kapsam için `ROADMAP.md`.
 
 ## Backend
 - [ ] `/health` ve `/addr` (Bet/ChipBank adresleri, RAKE_BPS)
+- [ ] WS auth JWT refresh endpoint ve nonce rotation
 - [ ] Showdown → settleSplit retry/backoff, log seviyeleri
 - [ ] Event relay: finalize summary + LP kesinti özetleri
+- [ ] Redis bağlantı pool ve timeouts; rate-limit metrikleri
 
 ## Contracts
 - [ ] `ChipBank` unit testleri: open→settle→cashOutFull, onlyWinner/profitOnly, bps tavanı, auth
@@ -21,6 +23,7 @@ Güncel kısa liste; geniş kapsam için `ROADMAP.md`.
 ## DX/CI
 - [ ] `contracts:build` sonrası otomatik `export-abis`
 - [ ] Husky + lint-staged (solhint/eslint/markdownlint)
-- [ ] CI: contracts build+test; frontend build; backend lint/test (ops.)
+- [ ] CI: contracts build+test; frontend build; backend lint/test
+- [ ] Security CI: Semgrep (SARIF), Dependency Review, CodeQL upload
 
 

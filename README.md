@@ -151,6 +151,11 @@ Oturum bakiyesi (ChipBank) → Cash‑Out (%LP kesinti) → Oyuncu & POL
   - `action:<userId>`: 10/s (burst 20)
   - `buyin:<userId>`: 2/s (burst 4)
 - Structured logs: `{type, userId, tableId, handId, action, amount, jti}` formatında.
+
+### Ortam Değişkenleri (Auth)
+- `JWT_SECRET`
+- `REDIS_URL`
+- `TELEGRAM_BOT_TOKEN`
 ### Doğrulama & Rounding Politikası
 - Side-pot ve dağıtım conservation: perSeat ödemeleri + totalRake toplamı, pot toplamına eşittir.
 - Rake hesabı: `floor(pot * bps / 10_000)`; `rakeCap` varsa min alınır.
