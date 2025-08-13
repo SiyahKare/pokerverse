@@ -1,6 +1,6 @@
 import { gzipSync } from 'zlib'
 import { readdirSync, readFileSync, statSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
 
 function collect(dir) {
   let files = []
@@ -13,9 +13,7 @@ function collect(dir) {
   return files
 }
 
-const base = new URL('../dist', import.meta.url)
-const nextStatic = new URL('../dist', import.meta.url) // vite → dist
-const dir = nextStatic
+const dir = resolve(process.cwd(), 'dist')
 try {
   const list = collect(dir)
   let total = 0
