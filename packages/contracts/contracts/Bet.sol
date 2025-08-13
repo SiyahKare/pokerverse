@@ -37,6 +37,8 @@ contract Bet is Ownable, ReentrancyGuard {
     uint256 public constant INVESTIGATION_PERIOD = 15; // dev: 15s (MVP smoke)
     mapping(uint256 => Game) public games;
     mapping(uint256 => mapping(address => bool)) public hasJoined;
+    // Idempotency: double finalize'ı engelle
+    mapping(uint256 => bool) public finalized;
 
     event GameCreated(uint256 gid, uint8 limit, uint256 buyIn, uint16 feeBps);
     event PlayerJoined(uint256 gid, address player);
@@ -44,6 +46,10 @@ contract Bet is Ownable, ReentrancyGuard {
     event WinnerProposed(uint256 gid, address winner);
     event WinnerFinalized(uint256 gid, address winner, uint256 pot, uint256 fee, uint256 payout);
     event LiquidityContribution(uint256 indexed gid, address indexed to, uint256 amount);
+    // Config değişimleri izlenebilir olsun
+    event DealerSet(address dealer);
+    event PolCollectorSet(address collector);
+    event PolBpsSet(uint16 bps);
 
     constructor(
         IERC20 _asset,
@@ -66,11 +72,11 @@ contract Bet is Ownable, ReentrancyGuard {
         require(msg.sender == dealer || msg.sender == owner(), "not dealer");
         _;
     }
-    function setDealer(address _dealer) external onlyOwner { require(_dealer!=address(0),"dealer=0"); dealer=_dealer; }
-    function setPolCollector(address a) external onlyOwner { require(a!=address(0),"pol=0"); polCollector=a; }
-    function setPolBps(uint16 b) external onlyOwner { require(b<=MAX_POL_BPS, "pol>max"); polBps=b; }
+    function setDealer(address _dealer) external onlyOwner nonReentrant { require(_dealer!=address(0),"dealer=0"); dealer=_dealer; emit DealerSet(_dealer); }
+    function setPolCollector(address a) external onlyOwner nonReentrant { require(a!=address(0),"pol=0"); polCollector=a; emit PolCollectorSet(a); }
+    function setPolBps(uint16 b) external onlyOwner nonReentrant { require(b<=MAX_POL_BPS, "pol>max"); polBps=b; emit PolBpsSet(b); }
 
-    function createGame(uint8 _limit, uint256 _buyIn, uint16 _feeBps) external onlyOwner returns (uint256 gid) {
+    function createGame(uint8 _limit, uint256 _buyIn, uint16 _feeBps) external onlyOwner nonReentrant returns (uint256 gid) {
         require(_limit==2||_limit==4||_limit==6||_limit==9,"limit");
         require(_feeBps<=MAX_FEE_BPS,"fee>max"); require(_buyIn>0,"buyIn=0");
         gid = nextGameId++;
@@ -90,7 +96,7 @@ contract Bet is Ownable, ReentrancyGuard {
         if (g.players.length==g.playerLimit){ g.state=GameState.InProgress; emit GameStarted(gid); }
     }
 
-    function proposeWinner(uint256 gid, address winner) external onlyDealer {
+    function proposeWinner(uint256 gid, address winner) external onlyDealer nonReentrant {
         Game storage g = games[gid]; require(g.state==GameState.InProgress || g.state==GameState.UnderInvestigation,"state");
         require(winner!=address(0),"winner=0");
         g.proposedWinner=winner;
@@ -99,10 +105,12 @@ contract Bet is Ownable, ReentrancyGuard {
     }
 
     function finalizeWinner(uint256 gid) external onlyDealer nonReentrant {
+        require(!finalized[gid], "already finalized");
         Game storage g = games[gid]; require(g.state==GameState.UnderInvestigation,"state");
         require(block.timestamp >= uint256(g.investigationStart)+INVESTIGATION_PERIOD,"period");
         require(g.proposedWinner!=address(0),"no winner");
         uint256 pot=g.pot; g.pot=0; g.state=GameState.Ended;
+        finalized[gid] = true;
         // 1) Rake -> Vault
         uint256 fee = pot * g.feeBps / 10_000;
         uint256 gross = pot - fee;

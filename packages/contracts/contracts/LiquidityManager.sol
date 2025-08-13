@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface IUniswapV2Router02 {
     function addLiquidity(
@@ -12,7 +13,7 @@ interface IUniswapV2Router02 {
     ) external returns (uint amountA, uint amountB, uint liquidity);
 }
 
-contract LiquidityManager is Ownable {
+contract LiquidityManager is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable usdc;
@@ -31,12 +32,13 @@ contract LiquidityManager is Ownable {
     }
 
     // Bet.sol buraya USDC gönderiyor; ayrıca isteyen donate edebilir
-    function depositUSDC(uint256 amount) external {
+    function depositUSDC(uint256 amount) external nonReentrant {
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         emit Deposited(msg.sender, amount);
     }
 
-    function addLiquidity(uint256 usdcAmt, uint256 pokerAmt, uint256 minUsdc, uint256 minPoker) external onlyOwner {
+    function addLiquidity(uint256 usdcAmt, uint256 pokerAmt, uint256 minUsdc, uint256 minPoker) external onlyOwner nonReentrant {
+        // CEI: önce internal state değişimleri yok; allowance reset + approve sonra etkileşim
         IERC20(usdc).approve(address(router), 0);
         IERC20(usdc).approve(address(router), usdcAmt);
         IERC20(poker).approve(address(router), 0);
