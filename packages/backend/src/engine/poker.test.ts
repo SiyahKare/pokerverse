@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { shuffleDeckDeterministic } from './poker';
 
 describe('Provably-Fair RNG', () => {

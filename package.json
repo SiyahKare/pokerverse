@@ -9,7 +9,8 @@
     "contracts:build": "npm -w packages/contracts run build",
     "contracts:deploy": "npm -w packages/contracts run deploy",
     "backend:dev": "npm -w packages/backend run dev",
-    "frontend:dev": "npm -w packages/frontend run dev"
+    "frontend:dev": "npm -w packages/frontend run dev",
+    "backend:test": "npm -w packages/backend run test"
   }
 }
 

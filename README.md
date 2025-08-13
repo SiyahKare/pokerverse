@@ -143,6 +143,11 @@ Oturum bakiyesi (ChipBank) → Cash‑Out (%LP kesinti) → Oyuncu & POL
 
 ## 🩺 Troubleshooting
 ## 🔐 Provably-Fair (Commit–Reveal RNG)
+### Doğrulama & Rounding Politikası
+- Side-pot ve dağıtım conservation: perSeat ödemeleri + totalRake toplamı, pot toplamına eşittir.
+- Rake hesabı: `floor(pot * bps / 10_000)`; `rakeCap` varsa min alınır.
+- Split artıkları (odd chips): default policy `lowestSeat` (küçük seat id’den başlayarak artan 1’ler dağıtılır).
+- Tüm hesaplar USDC 6d varsayımıyla `bigint` olarak yapılır; modulo-bias engellenir.
 
 Poker dağıtımı deterministiktir. Her el başlangıcında sunucu 32 bayt `seed` üretir ve `commit = keccak256(seed)` değerini yayınlar. El bitiminde `seed` açıklanır. İstemci, aşağıdaki adımlarla dağıtımı doğrulayabilir:
 
