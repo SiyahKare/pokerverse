@@ -9,7 +9,25 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: false,
     reportCompressedSize: true,
+    treeshake: {
+      moduleSideEffects: false,
+      propertyReadSideEffects: false,
+      tryCatchDeoptimization: false
+    },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@pixi')) return 'pixi'
+            if (id.includes('wallet') || id.includes('wagmi') || id.includes('viem') || id.includes('appkit')) return 'wallet'
+            if (id.includes('react')) return 'vendor'
+          }
+        }
+      }
+    },
+    minify: 'esbuild'
   },
+  optimizeDeps: { exclude: ['@pixi/filter-*', 'pixi-filters'] },
   // Expose both VITE_* and WC_* vars to the client
   envPrefix: ['VITE_', 'WC_'],
   // Monorepo kökünde .env varsa yükleyebilmek için

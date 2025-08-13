@@ -18,6 +18,9 @@ try {
   const list = collect(dir)
   let total = 0
   for (const f of list) {
+    // sadece js ve css dosyalarını say
+    if (!/\.(js|css)$/i.test(f)) continue
+    if (/LICENSE/i.test(f)) continue
     const buf = readFileSync(f)
     total += gzipSync(buf).length
   }

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { Stage, Container, Sprite, BitmapText } from "@pixi/react";
+import { Application, extend } from "@pixi/react";
+import { Container as PixiContainer, Sprite as PixiSprite } from 'pixi.js'
+extend({ Container: PixiContainer, Sprite: PixiSprite })
 import { ensureAtlasLoaded, getTexture } from "../lib/pixi/atlas";
 import { registerAtlas } from "../lib/pixi/registerAtlas";
 import { registerChipsDigits } from "../lib/pixi/bitmapFont";
@@ -12,14 +14,11 @@ export default function TableCanvas() {
   const felt = getTexture("table-felt");
   return (
     <div ref={ref} className="relative w-full h-full">
-      <Stage
-        width={size.w} height={size.h}
-        options={{ antialias:false, backgroundAlpha:1, autoDensity:true, powerPreference:"high-performance", resolution:dpr }}>
+      <Application width={size.w} height={size.h} options={{ antialias:false, backgroundAlpha:1, autoDensity:true, powerPreference:"high-performance", resolution:dpr }}>
         <Container>
           {felt && <Sprite texture={felt} width={size.w} height={size.h} />}
-          <BitmapText text="1000" style={{ fontName: "ChipsDigits", fontSize: 24 }} x={20} y={20}/>
         </Container>
-      </Stage>
+      </Application>
     </div>
   );
 }

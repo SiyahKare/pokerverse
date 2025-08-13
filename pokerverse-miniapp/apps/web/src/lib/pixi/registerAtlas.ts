@@ -1,21 +1,14 @@
 import { Assets } from "pixi.js";
 export function registerAtlas() {
+  const CDN = (import.meta as any).env?.VITE_ATLAS_CDN ? String((import.meta as any).env.VITE_ATLAS_CDN).replace(/\/$/, '') : ''
+  const base = CDN || '/cdn/atlas'
   Assets.addBundle('atlas-1x', {
-    'table-felt@1x': '/assets/atlas/table-felt@1x.png',
-    'pot-glow@1x': '/assets/atlas/pot-glow@1x.png',
-    'seat-gold-border@1x': '/assets/atlas/seat-gold-border@1x.png',
-    'hand-badge-pending@1x': '/assets/atlas/hand-badge-pending@1x.png',
-    'hand-badge-ok@1x': '/assets/atlas/hand-badge-ok@1x.png',
-    'hand-badge-fail@1x': '/assets/atlas/hand-badge-fail@1x.png'
+    'table-felt@1x': `${base}/table-felt@1x.webp`,
+    'hand-badge-pending@1x': `${base}/hand-badge-pending@1x.webp`,
+    'hand-badge-ok@1x': `${base}/hand-badge-ok@1x.webp`,
+    'hand-badge-fail@1x': `${base}/hand-badge-fail@1x.webp`
   });
-  Assets.addBundle('atlas-2x', {
-    'table-felt@2x': '/assets/atlas/table-felt@2x.png',
-    'pot-glow@2x': '/assets/atlas/pot-glow@2x.png',
-    'seat-gold-border@2x': '/assets/atlas/seat-gold-border@2x.png',
-    'hand-badge-pending@2x': '/assets/atlas/hand-badge-pending@2x.png',
-    'hand-badge-ok@2x': '/assets/atlas/hand-badge-ok@2x.png',
-    'hand-badge-fail@2x': '/assets/atlas/hand-badge-fail@2x.png'
-  });
+  // 2x bundle dışı (CDN üzerinden yüklenecek)
 }
 
 
