@@ -143,6 +143,14 @@ Oturum bakiyesi (ChipBank) → Cash‑Out (%LP kesinti) → Oyuncu & POL
 
 ## 🩺 Troubleshooting
 ## 🔐 Provably-Fair (Commit–Reveal RNG)
+## 🔒 Auth & Limits
+- Telegram initData doğrulama: `/api/telegram/verify` endpoint’ine `initData` gönderilir; server HMAC‑SHA256 ile doğrular ve 15dk’lık JWT üretir.
+- WS handshake: `Authorization: Bearer <JWT>` ve `x-client-nonce` zorunlu; JWT içinde `jti` vardır. Replay guard: Redis `SETNX jti:<jti> EX 900`.
+- Rate limit (token bucket):
+  - `room:join:<userId>`: 5/s (burst 10)
+  - `action:<userId>`: 10/s (burst 20)
+  - `buyin:<userId>`: 2/s (burst 4)
+- Structured logs: `{type, userId, tableId, handId, action, amount, jti}` formatında.
 ### Doğrulama & Rounding Politikası
 - Side-pot ve dağıtım conservation: perSeat ödemeleri + totalRake toplamı, pot toplamına eşittir.
 - Rake hesabı: `floor(pot * bps / 10_000)`; `rakeCap` varsa min alınır.
