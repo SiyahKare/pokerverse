@@ -2,7 +2,8 @@
   "name": "pokerverse",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "pokerverse-miniapp"
   ],
   "scripts": {
     "contracts:install": "npm -w packages/contracts i",
@@ -10,7 +11,10 @@
     "contracts:deploy": "npm -w packages/contracts run deploy",
     "backend:dev": "npm -w packages/backend run dev",
     "frontend:dev": "npm -w packages/frontend run dev",
-    "backend:test": "npm -w packages/backend run test"
+    "backend:test": "npm -w packages/backend run test",
+    "build:core": "npm -w packages/core-game run build && npm -w packages/core-ws run build",
+    "dev:web": "npm -w packages/frontend run dev",
+    "dev:mini": "npm -w pokerverse-miniapp run dev"
   }
 }
 
