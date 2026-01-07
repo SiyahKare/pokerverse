@@ -20,6 +20,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pokerverse-miniapp/apps/web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +33,7 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: |
+            pokerverse-miniapp/apps/web/package-lock.json
             package-lock.json
 
       - name: Install
@@ -38,12 +42,12 @@ jobs:
       - name: Build
         env:
           VITE_ATLAS_CDN: https://cdn.pokerverse.siyahkare.com/atlas/latest
-        run: npm run -w pokerverse-miniapp/apps/web build
+        run: npm run build
 
       - name: Write CNAME
         run: |
-          echo "miniapp.pokerverse.siyahkare.com" > pokerverse-miniapp/apps/web/dist/CNAME
-          echo "nojekyll" > pokerverse-miniapp/apps/web/dist/.nojekyll
+          echo "miniapp.pokerverse.siyahkare.com" > dist/CNAME
+          echo "nojekyll" > dist/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
