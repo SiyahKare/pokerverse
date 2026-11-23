@@ -23,10 +23,16 @@ export default function LobbyPage() {
   const stats = useMemo(()=> ({ active: tables.length, players: tables.reduce((a,b)=>a+b.players,0) }), [tables])
 
   return (
-    <div className="space-y-4">
-      <div className="text-sm text-white/70">Active tables: <span className="gold font-medium">{stats.active}</span> • Players: <span className="gold font-medium">{stats.players}</span></div>
+    <div className="space-y-6">
+      <section className="vice-hero">
+        <div className="vice-kicker">VICE NIGHTS · POKERVERSE</div>
+        <h1>Baron’un masası.</h1>
+        <p>Miami gecesi başlıyor. Masaları keşfet, stratejini kur ve oyuna katıl.</p>
+        <span className="vice-notice">Örnek lobi · Masa verileri demodur</span>
+      </section>
+      <div className="text-sm text-white/70">Örnek masalar: <span className="gold font-medium">{stats.active}</span> • Örnek oyuncular: <span className="gold font-medium">{stats.players}</span></div>
       <LobbyFilters />
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(t=> (<TableCard key={t.id} t={t} />))}
       </div>
     </div>

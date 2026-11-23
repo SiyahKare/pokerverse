@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "test": "vitest run \"tests/unit/**/*.test.ts\"",
+    "test": "vitest run tests/unit",
     "test:e2e": "NEXT_PUBLIC_E2E=1 npm run build && NEXT_PUBLIC_E2E=1 playwright test"
   },
   "dependencies": {
