@@ -1,13 +1,14 @@
 "use client";
+import Link from "next/link";
 export default function Header() {
   return (
-    <header className="sticky top-0 z-40 backdrop-blur border-b border-white/5 bg-black/20">
-      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="font-semibold tracking-tight">Poker<span className="gold">Verse</span></div>
-        <div className="text-sm text-white/70">Balance: 0.00 • Settings</div>
+    <header className="sticky top-0 z-40 border-b border-pink-300/20 bg-[#15101e]/95 backdrop-blur">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
+        <Link href="/" className="font-bold tracking-[.14em] text-white" aria-label="PokerVerse ana sayfa">
+          <span className="gold">♠</span> POKER<span className="gold">VERSE</span>
+        </Link>
+        <span className="rounded-full border border-pink-300/30 px-3 py-2 text-xs font-medium tracking-wider text-pink-200">VICE NIGHTS</span>
       </div>
     </header>
   )
 }
-
-
